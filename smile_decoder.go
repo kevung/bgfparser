@@ -209,9 +209,13 @@ func (d *smileDecoder) readObject() (map[string]interface{}, error) {
 			return result, nil
 		}
 
-		// Sanity check: if we hit end array, something is wrong
+		// If we hit end array marker, this means we're done (malformed but recoverable)
+		// This can happen during error recovery when offset wasn't properly advanced
 		if b == smileEndArray {
-			return result, fmt.Errorf("unexpected end array in object at offset %d", d.offset)
+			result["_unexpectedEndArray"] = true
+			result["_endArrayOffset"] = d.offset
+			d.offset++         // Consume the END_ARRAY
+			return result, nil // Return what we have
 		}
 
 		// Read key - in SMILE, keys are strings (can be shared refs or new strings)
@@ -265,13 +269,13 @@ func (d *smileDecoder) readObject() (map[string]interface{}, error) {
 		// Read value
 		value, err := d.decode()
 		if err != nil {
-			// Store partial result with error indication, but continue trying to decode
+			// Store partial result with error indication and stop
 			result[keyStr] = fmt.Sprintf("<decode error: %v>", err)
 			result["_lastError"] = fmt.Sprintf("Error decoding key '%s' at offset %d: %v", keyStr, d.offset, err)
 			result["_errorOffset"] = d.offset
-			// Try to skip past the problematic value and continue
-			// This allows us to decode more of the file even if some parts fail
-			continue
+			result["_keyCount"] = keyCount
+			// Return what we have - don't try to continue past decode errors
+			return result, nil
 		}
 
 		result[keyStr] = value
