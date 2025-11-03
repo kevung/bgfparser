@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/unger/bgfparser/internal/smile"
 )
 
 // ParseBGF parses a BGBlitz BGF (binary match) file
@@ -60,15 +62,18 @@ func ParseBGF(filename string) (*Match, error) {
 
 	// Handle SMILE encoding
 	if match.UseSmile {
-		// SMILE is a binary JSON format
-		// Attempt to decode it with our basic SMILE decoder
-		data, err := DecodeSMILE(jsonData)
-		if err != nil {
-			// Even if we can't fully decode, we may have extracted some info
-			match.Data = data
-			match.DecodingWarning = fmt.Sprintf("SMILE decoding incomplete: %v", err)
+		// SMILE is a binary JSON format - use internal smile decoder
+		var data interface{}
+		if err := smile.Unmarshal(jsonData, &data); err != nil {
+			return nil, &ParseError{File: filename, Message: "failed to decode SMILE: " + err.Error()}
+		}
+
+		// Convert to map[string]interface{} if possible
+		if dataMap, ok := data.(map[string]interface{}); ok {
+			match.Data = dataMap
 		} else {
-			match.Data = data
+			// Wrap non-map data
+			match.Data = map[string]interface{}{"_data": data}
 		}
 	} else {
 		// Parse regular JSON
