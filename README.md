@@ -26,8 +26,12 @@ BGFParser is a comprehensive library for reading and analyzing backgammon data f
 - ✅ Read BGF file headers (format, version, compression info)
 - ✅ Decompress gzip-compressed data
 - ✅ Parse JSON data from uncompressed files
-- ✅ Basic SMILE decoding (extracts player names, dates, and key metadata)
-- ⚠️ Full SMILE decoding is partial (complex nested structures may not parse completely)
+- ✅ SMILE decoding with partial data extraction
+  - Extracts match parameters (matchlen, dates, scores)
+  - Decodes boolean flags (Crawford, Jacoby, Cube usage)
+  - Parses player information
+  - Handles nested objects and arrays
+- ⚠️ Complex deeply nested SMILE structures may not decode completely (continues with partial data)
 
 ## Installation
 

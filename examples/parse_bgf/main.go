@@ -43,6 +43,29 @@ func main() {
 	// Display extracted information
 	if len(match.Data) > 0 {
 		fmt.Println("\n=== Match Data ===")
+
+		// Show partially decoded data if available
+		if partialData, ok := match.Data["_partiallyDecoded"].(map[string]interface{}); ok && len(partialData) > 0 {
+			fmt.Println("\n--- Decoded Fields ---")
+
+			// Show specific interesting fields first
+			interestingKeys := []string{"matchlen", "useCrawford", "useJacoby", "useCube", "date",
+				"finalGreen", "finalRed", "actGame", "flags", "gameMode"}
+
+			for _, key := range interestingKeys {
+				if val, exists := partialData[key]; exists {
+					fmt.Printf("%s: %v\n", key, val)
+				}
+			}
+
+			// Count total decoded fields
+			fmt.Printf("\nTotal decoded fields: %d\n", len(partialData))
+
+			if offset, ok := match.Data["_decodedOffset"].(int); ok {
+				fmt.Printf("Decoded up to offset: %d bytes\n", offset)
+			}
+		}
+
 		info := match.GetMatchInfo()
 		for key, value := range info {
 			if key != "format" && key != "version" && key != "compress" && key != "useSmile" {
