@@ -71,7 +71,42 @@ func DecodeSMILE(data []byte) (map[string]interface{}, error) {
 		return partial, fmt.Errorf("SMILE decoding incomplete: %v", err)
 	}
 
+	// Check if there's more data to decode
+	// The SMILE file might contain multiple top-level values that should be merged
 	if m, ok := result.(map[string]interface{}); ok {
+		// Try to decode more values and merge them into the first object
+		for decoder.offset < len(decoder.data) {
+			// Check if we're at a new value
+			b := decoder.data[decoder.offset]
+
+			// Skip any trailing bytes that aren't valid SMILE markers
+			if b != smileStartObject && b != smileStartArray && !(b >= 0x20) {
+				break
+			}
+
+			additionalValue, err := decoder.decode()
+			if err != nil {
+				// Stop on error, but keep what we have
+				m["_additionalDataError"] = fmt.Sprintf("Error decoding additional data at offset %d: %v", decoder.offset, err)
+				break
+			}
+
+			// Merge if it's another object
+			if additionalMap, ok := additionalValue.(map[string]interface{}); ok {
+				for k, v := range additionalMap {
+					// Don't overwrite existing keys
+					if _, exists := m[k]; !exists {
+						m[k] = v
+					}
+				}
+			} else {
+				// Store non-object additional values with a generated key
+				m[fmt.Sprintf("_additionalValue_%d", decoder.offset)] = additionalValue
+			}
+		}
+
+		m["_finalOffset"] = decoder.offset
+		m["_totalBytes"] = len(data)
 		return m, nil
 	}
 
@@ -158,6 +193,7 @@ func (d *smileDecoder) decode() (interface{}, error) {
 func (d *smileDecoder) readObject() (map[string]interface{}, error) {
 	d.offset++ // Skip 0xFA
 	result := make(map[string]interface{})
+	keyCount := 0
 
 	for d.offset < len(d.data) {
 		if d.offset >= len(d.data) {
@@ -168,6 +204,8 @@ func (d *smileDecoder) readObject() (map[string]interface{}, error) {
 
 		if b == smileEndObject {
 			d.offset++
+			// Store how many keys we found
+			result["_keyCount"] = keyCount
 			return result, nil
 		}
 
@@ -201,8 +239,11 @@ func (d *smileDecoder) readObject() (map[string]interface{}, error) {
 			}
 		} else if b >= 0x40 && b < 0xC0 {
 			// Short ASCII key (includes both 0x40-0x7F and 0x80-0xBF ranges)
-			// The 0x80-0xBF range will be added to shared keys automatically
-			keyStr, err = d.readShortAscii()
+			// For KEYS, the encoding is different than for VALUES
+			// 0x40 = empty string (length 0)
+			// 0x41-0x7F = length (byte - 0x40) = 1-63 bytes
+			// 0x80-0xBF = length (byte - 0x80 + 1) = 1-64 bytes (added to shared keys)
+			keyStr, err = d.readKey()
 			if err != nil {
 				return result, fmt.Errorf("error reading object key: %v", err)
 			}
@@ -224,16 +265,25 @@ func (d *smileDecoder) readObject() (map[string]interface{}, error) {
 		// Read value
 		value, err := d.decode()
 		if err != nil {
-			// Store partial result with error indication, then stop
+			// Store partial result with error indication, but continue trying to decode
 			result[keyStr] = fmt.Sprintf("<decode error: %v>", err)
-			// Return what we have so far
-			return result, err
+			result["_lastError"] = fmt.Sprintf("Error decoding key '%s' at offset %d: %v", keyStr, d.offset, err)
+			result["_errorOffset"] = d.offset
+			// Try to skip past the problematic value and continue
+			// This allows us to decode more of the file even if some parts fail
+			continue
 		}
 
 		result[keyStr] = value
+		keyCount++
 	}
 
-	return result, fmt.Errorf("object not properly closed")
+	// If we get here, we exited the loop without finding END_OBJECT
+	// Store debug info about why
+	result["_exitReason"] = "loop exited"
+	result["_finalOffset"] = d.offset
+	result["_dataLength"] = len(d.data)
+	return result, fmt.Errorf("object not properly closed (offset=%d, len=%d)", d.offset, len(d.data))
 }
 
 func (d *smileDecoder) readArray() ([]interface{}, error) {
@@ -259,8 +309,15 @@ func (d *smileDecoder) readArray() ([]interface{}, error) {
 
 func (d *smileDecoder) readTinyAscii() (string, error) {
 	b := d.data[d.offset]
-	length := int(b - 0x20 + 1)
+	// Tiny ASCII: 0x20-0x3F
+	// Length = (byte - 0x20) = 0-31 bytes
+	// NOTE: 0x20 specifically means empty string (length 0)
+	length := int(b - 0x20)
 	d.offset++
+
+	if length == 0 {
+		return "", nil
+	}
 
 	if d.offset+length > len(d.data) {
 		return "", fmt.Errorf("string extends beyond data")
@@ -276,10 +333,10 @@ func (d *smileDecoder) readShortAscii() (string, error) {
 	var length int
 
 	// Short ASCII strings: 0x40-0xBF
-	// 0x40-0x7F: length = byte - 0x40 (0-63 bytes)
-	// 0x80-0xBF: length = byte - 0x80 + 1 (1-64 bytes) - these add to shared keys!
+	// 0x40-0x7F: length = (byte - 0x40 + 1) gives 1-64 bytes
+	// 0x80-0xBF: length = (byte - 0x80 + 1) gives 1-64 bytes - these add to shared keys!
 	if b >= 0x40 && b < 0x80 {
-		length = int(b - 0x40)
+		length = int(b - 0x40 + 1)
 	} else if b >= 0x80 && b < 0xC0 {
 		length = int(b - 0x80 + 1)
 	} else {
@@ -297,6 +354,40 @@ func (d *smileDecoder) readShortAscii() (string, error) {
 
 	// Strings in 0x80-0xBF range are added to shared keys
 	// (these are "long key names")
+	if b >= 0x80 && b < 0xC0 {
+		d.keys = append(d.keys, str)
+	}
+
+	return str, nil
+}
+
+// readKey reads a key specifically (keys have different length encoding than values)
+func (d *smileDecoder) readKey() (string, error) {
+	b := d.data[d.offset]
+	var length int
+
+	// Key encoding in SMILE:
+	// 0x40: empty string (length 0)
+	// 0x41-0x7F: length = (byte - 0x40) = 1-63 bytes
+	// 0x80-0xBF: length = (byte - 0x80 + 1) = 1-64 bytes (added to shared keys)
+	if b >= 0x40 && b < 0x80 {
+		length = int(b - 0x40)
+	} else if b >= 0x80 && b < 0xC0 {
+		length = int(b - 0x80 + 1)
+	} else {
+		return "", fmt.Errorf("not a valid key marker: 0x%02x", b)
+	}
+
+	d.offset++
+
+	if d.offset+length > len(d.data) {
+		return "", fmt.Errorf("key extends beyond data")
+	}
+
+	str := string(d.data[d.offset : d.offset+length])
+	d.offset += length
+
+	// Strings in 0x80-0xBF range are added to shared keys
 	if b >= 0x80 && b < 0xC0 {
 		d.keys = append(d.keys, str)
 	}
