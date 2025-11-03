@@ -130,8 +130,19 @@ func main() {
 
 			fmt.Printf("\nTotal decoded fields: %d\n", len(keys))
 
-			if offset, ok := match.Data["_decodedOffset"].(int); ok {
+			// Show decoding progress metadata
+			if offset, ok := match.Data["_finalOffset"].(int); ok {
+				fmt.Printf("Final decoding offset: %d bytes\n", offset)
+			} else if offset, ok := match.Data["_decodedOffset"].(int); ok {
 				fmt.Printf("Decoded up to offset: %d bytes\n", offset)
+			}
+
+			if totalBytes, ok := match.Data["_totalBytes"].(int); ok {
+				fmt.Printf("Total file size: %d bytes\n", totalBytes)
+			}
+
+			if pct, ok := match.Data["_percentDecoded"].(float64); ok {
+				fmt.Printf("Decoding progress: %.2f%%\n", pct)
 			}
 		}
 

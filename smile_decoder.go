@@ -56,62 +56,58 @@ func DecodeSMILE(data []byte) (map[string]interface{}, error) {
 
 	// Attempt basic decoding
 	result, err := decoder.decode()
-	if err != nil {
-		// Fall back to string extraction but try to get partial data
-		partial, _ := extractBasicInfo(data)
-		partial["_decodeError"] = err.Error()
-		partial["_decodedOffset"] = decoder.offset
 
-		// If we got a partial object, merge it in
-		if m, ok := result.(map[string]interface{}); ok && len(m) > 0 {
-			partial["_partiallyDecoded"] = m
-			return partial, nil // Return success with partial data
+	// Even if there's an error, try to use what we got
+	var m map[string]interface{}
+	var ok bool
+	if m, ok = result.(map[string]interface{}); !ok {
+		if err != nil {
+			// Fall back to string extraction but try to get partial data
+			partial, _ := extractBasicInfo(data)
+			partial["_decodeError"] = err.Error()
+			partial["_decodedOffset"] = decoder.offset
+			return partial, fmt.Errorf("SMILE decoding incomplete: %v", err)
 		}
-
-		return partial, fmt.Errorf("SMILE decoding incomplete: %v", err)
+		// Wrap non-map result
+		m = map[string]interface{}{"_data": result}
 	}
 
 	// Check if there's more data to decode
 	// The SMILE file might contain multiple top-level values that should be merged
-	if m, ok := result.(map[string]interface{}); ok {
-		// Try to decode more values and merge them into the first object
-		for decoder.offset < len(decoder.data) {
-			// Check if we're at a new value
-			b := decoder.data[decoder.offset]
+	for decoder.offset < len(decoder.data) {
+		// Check if we're at a new value
+		b := decoder.data[decoder.offset]
 
-			// Skip any trailing bytes that aren't valid SMILE markers
-			if b != smileStartObject && b != smileStartArray && !(b >= 0x20) {
-				break
-			}
-
-			additionalValue, err := decoder.decode()
-			if err != nil {
-				// Stop on error, but keep what we have
-				m["_additionalDataError"] = fmt.Sprintf("Error decoding additional data at offset %d: %v", decoder.offset, err)
-				break
-			}
-
-			// Merge if it's another object
-			if additionalMap, ok := additionalValue.(map[string]interface{}); ok {
-				for k, v := range additionalMap {
-					// Don't overwrite existing keys
-					if _, exists := m[k]; !exists {
-						m[k] = v
-					}
-				}
-			} else {
-				// Store non-object additional values with a generated key
-				m[fmt.Sprintf("_additionalValue_%d", decoder.offset)] = additionalValue
-			}
+		// Skip any trailing bytes that aren't valid SMILE markers
+		if b != smileStartObject && b != smileStartArray && !(b >= 0x20) {
+			break
 		}
 
-		m["_finalOffset"] = decoder.offset
-		m["_totalBytes"] = len(data)
-		return m, nil
+		additionalValue, err := decoder.decode()
+		if err != nil {
+			// Stop on error, but keep what we have
+			m["_additionalDataError"] = fmt.Sprintf("Error decoding additional data at offset %d: %v", decoder.offset, err)
+			break
+		}
+
+		// Merge if it's another object
+		if additionalMap, ok := additionalValue.(map[string]interface{}); ok {
+			for k, v := range additionalMap {
+				// Don't overwrite existing keys
+				if _, exists := m[k]; !exists {
+					m[k] = v
+				}
+			}
+		} else {
+			// Store non-object additional values with a generated key
+			m[fmt.Sprintf("_additionalValue_%d", decoder.offset)] = additionalValue
+		}
 	}
 
-	// If result is not a map, wrap it
-	return map[string]interface{}{"_data": result}, nil
+	m["_finalOffset"] = decoder.offset
+	m["_totalBytes"] = len(data)
+	m["_percentDecoded"] = float64(decoder.offset) * 100.0 / float64(len(data))
+	return m, nil
 }
 
 type smileDecoder struct {
@@ -132,9 +128,14 @@ func (d *smileDecoder) decode() (interface{}, error) {
 		return d.readObject()
 	} else if b == smileStartArray {
 		return d.readArray()
-	} else if b == smileEndObject || b == smileEndArray {
-		// These should be handled by their respective read functions
-		return nil, fmt.Errorf("unexpected end marker: 0x%02x", b)
+	} else if b == smileEndObject {
+		// END_OBJECT when not in readObject() means we've hit the end of a parent object
+		// This can happen during error recovery or malformed structures
+		// Don't consume it - let the parent readObject() handle it
+		return nil, fmt.Errorf("end of object context")
+	} else if b == smileEndArray {
+		// Similarly, END_ARRAY when not in readArray() means end of parent array
+		return nil, fmt.Errorf("end of array context")
 	}
 
 	// Literal values
@@ -251,8 +252,9 @@ func (d *smileDecoder) readObject() (map[string]interface{}, error) {
 			if err != nil {
 				return result, fmt.Errorf("error reading object key: %v", err)
 			}
-		} else if b >= 0xE0 {
-			// Long string
+		} else if b >= 0xE0 && b <= 0xEB {
+			// Long string or numeric types (0xE0-0xEB)
+			// Note: 0xF8-0xFB are structural markers, not valid keys
 			val, err := d.readLongValue()
 			if err != nil {
 				return result, fmt.Errorf("error reading long key: %v", err)
@@ -262,20 +264,54 @@ func (d *smileDecoder) readObject() (map[string]interface{}, error) {
 			} else {
 				keyStr = fmt.Sprintf("%v", val)
 			}
+		} else if b == smileStartObject || b == smileStartArray {
+			// Hit a structural marker where we expected a key
+			// This likely means the previous value consumed more bytes than expected
+			// or there's a data structure mismatch
+			// Store debug info and return what we have
+			result["_unexpectedStructuralMarker"] = fmt.Sprintf("0x%02x", b)
+			result["_unexpectedMarkerOffset"] = d.offset
+			result["_keyCount"] = keyCount
+			// Don't consume the marker - let parent handle it
+			return result, nil
 		} else {
 			return result, fmt.Errorf("unexpected key type marker: 0x%02x at offset %d", b, d.offset)
-		}
-
-		// Read value
+		} // Read value
 		value, err := d.decode()
 		if err != nil {
-			// Store partial result with error indication and stop
+			// Check if it's an "end of context" error - these are recoverable
+			if err.Error() == "end of object context" || err.Error() == "end of array context" {
+				// This means we hit an END marker when trying to read a value
+				// Store what we have and check what's actually there
+				result["_contextEndAfterKey"] = keyStr
+				result["_contextEndOffset"] = d.offset
+				result["_keyCount"] = keyCount
+
+				// Check if it's actually the end of THIS object
+				if d.offset < len(d.data) && d.data[d.offset] == smileEndObject {
+					d.offset++ // Consume the END_OBJECT
+					return result, nil
+				}
+
+				// Otherwise, return what we have
+				return result, nil
+			}
+
+			// For other errors, store partial result with error indication and TRY to continue
 			result[keyStr] = fmt.Sprintf("<decode error: %v>", err)
-			result["_lastError"] = fmt.Sprintf("Error decoding key '%s' at offset %d: %v", keyStr, d.offset, err)
-			result["_errorOffset"] = d.offset
-			result["_keyCount"] = keyCount
-			// Return what we have - don't try to continue past decode errors
-			return result, nil
+			result[fmt.Sprintf("_error_%d", keyCount)] = fmt.Sprintf("Error decoding key '%s' at offset %d: %v", keyStr, d.offset, err)
+			keyCount++
+
+			// Try to continue - check if next byte is END_OBJECT
+			if d.offset < len(d.data) && d.data[d.offset] == smileEndObject {
+				d.offset++
+				result["_keyCount"] = keyCount
+				return result, nil
+			}
+
+			// If not END_OBJECT, try to continue reading more keys
+			// (this is aggressive error recovery)
+			continue
 		}
 
 		result[keyStr] = value
@@ -302,7 +338,26 @@ func (d *smileDecoder) readArray() ([]interface{}, error) {
 
 		value, err := d.decode()
 		if err != nil {
-			return result, err
+			// Check if it's an "end of context" error - these mean we should stop
+			if err.Error() == "end of array context" {
+				// Check if we're actually at END_ARRAY
+				if d.offset < len(d.data) && d.data[d.offset] == smileEndArray {
+					d.offset++ // Consume it
+					return result, nil
+				}
+				// Otherwise, just return what we have
+				return result, nil
+			}
+			if err.Error() == "end of object context" {
+				// Hit END_OBJECT while reading array - malformed but recoverable
+				// Don't consume it, let parent handle it
+				return result, nil
+			}
+
+			// For other errors, return what we have so far
+			// Append error marker and stop
+			result = append(result, fmt.Sprintf("<array element error: %v>", err))
+			return result, nil
 		}
 
 		result = append(result, value)
