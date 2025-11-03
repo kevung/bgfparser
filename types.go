@@ -79,6 +79,9 @@ type Match struct {
 
 	// Match data will be populated from the JSON structure
 	Data map[string]interface{}
+
+	// DecodingWarning contains any warnings from partial decoding
+	DecodingWarning string
 }
 
 // ParseError represents an error during parsing

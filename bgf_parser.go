@@ -61,12 +61,14 @@ func ParseBGF(filename string) (*Match, error) {
 	// Handle SMILE encoding
 	if match.UseSmile {
 		// SMILE is a binary JSON format
-		// For now, we'll note that SMILE decoding would require a SMILE library
-		// The go-smile library could be used, but it's not in the standard library
-		// Return match with header info but indicate SMILE is not supported
-		return match, &ParseError{
-			File:    filename,
-			Message: "SMILE encoding is not yet supported. The data is compressed JSON in SMILE binary format. A SMILE decoder library is needed.",
+		// Attempt to decode it with our basic SMILE decoder
+		data, err := DecodeSMILE(jsonData)
+		if err != nil {
+			// Even if we can't fully decode, we may have extracted some info
+			match.Data = data
+			match.DecodingWarning = fmt.Sprintf("SMILE decoding incomplete: %v", err)
+		} else {
+			match.Data = data
 		}
 	} else {
 		// Parse regular JSON

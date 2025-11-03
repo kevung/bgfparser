@@ -1,6 +1,6 @@
 # BGFParser
 
-A Go package for parsing BGBlitz backgammon data files.
+A Go package for parsing BGBlitz backgammon data files, including SMILE-encoded binary formats.
 
 ## Overview
 
@@ -26,7 +26,8 @@ BGFParser is a comprehensive library for reading and analyzing backgammon data f
 - ✅ Read BGF file headers (format, version, compression info)
 - ✅ Decompress gzip-compressed data
 - ✅ Parse JSON data from uncompressed files
-- ⚠️ SMILE encoding detection (full decoding requires additional library)
+- ✅ Basic SMILE decoding (extracts player names, dates, and key metadata)
+- ⚠️ Full SMILE decoding is partial (complex nested structures may not parse completely)
 
 ## Installation
 
@@ -91,8 +92,13 @@ func main() {
     
     // Display match information
     fmt.Printf("Format: %s v%s\n", match.Format, match.Version)
-    fmt.Printf("Compressed: %v\n", match.Compressed)
+    fmt.Printf("Compressed: %v\n", match.Compress)
     fmt.Printf("Uses SMILE: %v\n", match.UseSmile)
+    
+    // Check for decoding warnings
+    if match.DecodingWarning != "" {
+        fmt.Printf("Warning: %s\n", match.DecodingWarning)
+    }
     
     // Get match metadata
     info := match.GetMatchInfo()
@@ -176,6 +182,7 @@ type Match struct {
     Compressed bool                   // Gzip compression used
     UseSmile   bool                   // SMILE encoding used
     Data       map[string]interface{} // Parsed match data
+    DecodingWarning string            // Warning if decoding was incomplete
 }
 ```
 
@@ -251,7 +258,7 @@ Binary files with two parts:
    - Move history
    - Analysis results
 
-**Note**: Full SMILE decoding is not yet implemented. The parser can read the header and detect SMILE encoding, but decoding the binary JSON requires an additional library (e.g., `github.com/stdiopt/smile`).
+**Note**: SMILE decoding is implemented with basic support. The parser can read SMILE-encoded BGF files and extract player names, dates, match parameters, and other metadata. Complex nested structures may not parse completely, but key information is accessible.
 
 ## Project Structure
 
@@ -292,12 +299,12 @@ go build -o bin/batch_parse ./examples/batch_parse/
 
 ### Current Limitations
 - **Board parsing**: Board state extraction from ASCII art is partially implemented
-- **SMILE decoding**: BGF files with SMILE encoding cannot be fully parsed without additional library
+- **SMILE decoding**: Complex nested structures in SMILE format may not fully decode
 - **Language support**: Primarily tested with English and French files
 - **Incomplete statistics**: Some evaluation statistics may not be fully extracted
 
 ### Planned Improvements
-- Full SMILE decoder integration for BGF files
+- Enhanced SMILE decoder for complex nested structures
 - Complete board state parsing from ASCII representation
 - Support for additional BGBlitz output formats
 - More comprehensive test suite
