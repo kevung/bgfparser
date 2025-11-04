@@ -1,8 +1,8 @@
-# BGFParser API Reference
+# BGF Parser API Reference
 
-## Package: bgfparser
+## Package Information
 
-Import path: `github.com/unger/bgfparser`
+Import path: `github.com/kevung/bgfparser`
 
 ### Overview
 
@@ -335,7 +335,7 @@ package main
 import (
     "fmt"
     "log"
-    "github.com/unger/bgfparser"
+    "github.com/kevung/bgfparser"
 )
 
 func main() {
@@ -360,7 +360,7 @@ package main
 import (
     "fmt"
     "log"
-    "github.com/unger/bgfparser"
+    "github.com/kevung/bgfparser"
 )
 
 func main() {
@@ -394,7 +394,7 @@ package main
 import (
     "fmt"
     "log"
-    "github.com/unger/bgfparser"
+    "github.com/kevung/bgfparser"
 )
 
 func main() {
@@ -427,7 +427,7 @@ import (
     "fmt"
     "log"
     "path/filepath"
-    "github.com/unger/bgfparser"
+    "github.com/kevung/bgfparser"
 )
 
 func main() {

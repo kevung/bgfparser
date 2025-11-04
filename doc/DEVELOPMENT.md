@@ -1,93 +1,183 @@
-# Development Guide
+# Development Guide# Development Guide
 
-## Setting Up Development Environment
 
-### Prerequisites
 
-- Go 1.21 or later
-- Git
-- Text editor or IDE (VS Code, GoLand, etc.)
+## Setup## Setting Up Development Environment
+
+
+
+```bash### Prerequisites
+
+git clone https://github.com/kevung/bgfparser.git
+
+cd bgfparser- Go 1.21 or later
+
+go build ./...- Git
+
+go test ./...- Text editor or IDE (VS Code, GoLand, etc.)
+
+```
 
 ### Clone and Build
 
-```bash
-# Clone the repository
-git clone https://github.com/unger/bgfparser.git
-cd bgfparser
-
-# Build the package
-go build ./...
-
-# Run tests (when available)
-go test ./...
-
-# Build examples
-go build -o bin/parse_txt ./examples/parse_txt/
-go build -o bin/parse_bgf ./examples/parse_bgf/
-go build -o bin/batch_parse ./examples/batch_parse/
-```
-
 ## Code Style
 
-### Go Conventions
+```bash
 
-Follow standard Go conventions:
+- Follow standard Go conventions# Clone the repository
+
+- Use `gofmt` and `go vet`git clone https://github.com/kevung/bgfparser.git
+
+- Document all exported functionscd bgfparser
+
+
+
+```go# Build the package
+
+// ParseTXT parses a BGBlitz position text file.go build ./...
+
+func ParseTXT(filename string) (*Position, error) {
+
+    // ...# Run tests (when available)
+
+}go test ./...
+
+```
+
+# Build examples
+
+## Adding Featuresgo build -o bin/parse_txt ./examples/parse_txt/
+
+go build -o bin/parse_bgf ./examples/parse_bgf/
+
+### New Parser Functiongo build -o bin/batch_parse ./examples/batch_parse/
+
+```
+
+1. Define types in `types.go`
+
+2. Implement in appropriate file (e.g., `txt_parser.go`)## Code Style
+
+3. Add example in `examples/`
+
+4. Write tests### Go Conventions
+
+
+
+### New File FormatFollow standard Go conventions:
+
 - Use `gofmt` for formatting
-- Run `go vet` for static analysis
-- Follow effective Go guidelines
+
+1. Create `format_parser.go`- Run `go vet` for static analysis
+
+2. Implement `ParseFormat(filename string) (*Type, error)`- Follow effective Go guidelines
+
+3. Add to README
 
 ### Naming Conventions
 
-- **Exported functions**: PascalCase (e.g., `ParseTXT`)
-- **Unexported functions**: camelCase (e.g., `parseBoard`)
-- **Constants**: PascalCase or ALL_CAPS for enum-like values
-- **Package name**: lowercase, single word
+## Testing
 
-### Documentation
+- **Exported functions**: PascalCase (e.g., `ParseTXT`)
+
+```bash- **Unexported functions**: camelCase (e.g., `parseBoard`)
+
+# Run tests- **Constants**: PascalCase or ALL_CAPS for enum-like values
+
+go test ./...- **Package name**: lowercase, single word
+
+
+
+# With coverage### Documentation
+
+go test -cover ./...
 
 All exported functions and types must have documentation comments:
 
-```go
-// ParseTXT parses a BGBlitz position text file and returns
+# Specific test
+
+go test -run TestParseTXT```go
+
+```// ParseTXT parses a BGBlitz position text file and returns
+
 // a Position struct containing all extracted data.
-// Returns an error if the file cannot be read or parsed.
+
+### Test Structure// Returns an error if the file cannot be read or parsed.
+
 func ParseTXT(filename string) (*Position, error) {
-    // ...
-}
-```
 
-## Adding New Features
+```go    // ...
 
-### Adding a Parser Function
+func TestParseTXT(t *testing.T) {}
 
-1. **Define types** in `types.go`:
-```go
-type NewFeature struct {
-    Field1 string
+    pos, err := ParseTXT("testdata/sample.txt")```
+
+    if err != nil {
+
+        t.Fatalf("ParseTXT failed: %v", err)## Adding New Features
+
+    }
+
+    ### Adding a Parser Function
+
+    if pos.PlayerX != "expected" {
+
+        t.Errorf("got %s, want %s", pos.PlayerX, "expected")1. **Define types** in `types.go`:
+
+    }```go
+
+}type NewFeature struct {
+
+```    Field1 string
+
     Field2 int
-}
+
+## Building Examples}
+
 ```
 
-2. **Implement parser** in appropriate file:
-```go
-func parseNewFeature(line string) (*NewFeature, error) {
-    // Implementation
-}
+```bash
+
+go build -o bin/parse_txt ./examples/parse_txt/2. **Implement parser** in appropriate file:
+
+go build -o bin/parse_bgf ./examples/parse_bgf/```go
+
+go build -o bin/batch_parse ./examples/batch_parse/func parseNewFeature(line string) (*NewFeature, error) {
+
+go build -o bin/web_server ./examples/web_server/    // Implementation
+
+```}
+
 ```
+
+## Contributing
 
 3. **Integrate** with main parser:
-```go
-// In ParseTXT or ParseBGF
-if strings.Contains(line, "feature marker") {
-    feature, err := parseNewFeature(line)
-    if err != nil {
-        return nil, err
-    }
-    pos.NewFeature = feature
-}
-```
 
-4. **Add example** in `examples/`:
+1. Fork the repository```go
+
+2. Create feature branch// In ParseTXT or ParseBGF
+
+3. Make changes with testsif strings.Contains(line, "feature marker") {
+
+4. Run `gofmt`, `go vet`, `go test`    feature, err := parseNewFeature(line)
+
+5. Submit pull request    if err != nil {
+
+        return nil, err
+
+Areas needing contribution:    }
+
+- Full board parsing from ASCII art    pos.NewFeature = feature
+
+- SMILE decoder integration}
+
+- Additional file formats```
+
+- Performance improvements
+
+- Better error messages4. **Add example** in `examples/`:
+
 ```go
 if pos.NewFeature != nil {
     fmt.Printf("Feature: %v\n", pos.NewFeature)

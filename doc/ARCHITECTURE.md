@@ -28,10 +28,10 @@
           │ io.Reader           │ Filename string
           │ (HTTP upload)       │ (File path)
           │                     │
-┌─────────▼─────────────────────▼─────────────────────────────┐
-│                    bgfparser Package                         │
-│                   (github.com/unger/bgfparser)              │
-├──────────────────────────────────────────────────────────────┤
+┌────────────────────────────────────────────────────────┐
+│                   BGFParser Package                    │
+│                   (github.com/kevung/bgfparser)              │
+└────────────────────────────────────────────────────────┘
 │  Web-Ready API:                                             │
 │  • ParseBGFFromReader(io.Reader) -> *Match                  │
 │  • ParseTXTFromReader(io.Reader) -> *Position              │

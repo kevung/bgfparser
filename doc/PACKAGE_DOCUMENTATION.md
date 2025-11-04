@@ -1,122 +1,241 @@
-# Package Documentation
+# Package Documentation# Package Documentation
 
-## Package Structure
 
-The `bgfparser` package is organized into several files, each with a specific purpose:
 
-### Core Files
+## Package Structure## Package Structure
 
-#### types.go
-Defines all data structures used throughout the package:
-- `Position`: Complete backgammon position with all metadata
+
+
+### Core FilesThe `bgfparser` package is organized into several files, each with a specific purpose:
+
+
+
+- **types.go** - Data structures (Position, Evaluation, CubeDecision, Match)### Core Files
+
+- **txt_parser.go** - TXT position file parser  
+
+- **txt_parser_helpers.go** - Helper functions for TXT parsing#### types.go
+
+- **bgf_parser.go** - BGF binary match file parserDefines all data structures used throughout the package:
+
+- **web.go** - io.Reader-based parsers for web integration- `Position`: Complete backgammon position with all metadata
+
 - `Evaluation`: Move evaluation with equity and probabilities
-- `CubeDecision`: Cube action analysis
+
+## Design- `CubeDecision`: Cube action analysis
+
 - `Match`: BGF match file container
-- `ParseError`: Custom error type for parsing failures
 
-#### txt_parser.go
-Implements parsing for BGBlitz TXT position files:
-- `ParseTXT(filename string) (*Position, error)`: Main entry point
-- `parseBoard(pos *Position, lines []string)`: Board state extraction
-- `parseXGID(pos *Position, xgid string)`: XGID parser
+### TXT Parser- `ParseError`: Custom error type for parsing failures
+
+Line-by-line state machine using regex patterns to extract:
+
+- Board state from ASCII art#### txt_parser.go
+
+- Player metadata and scoresImplements parsing for BGBlitz TXT position files:
+
+- Move evaluations with equity- `ParseTXT(filename string) (*Position, error)`: Main entry point
+
+- Cube decisions- `parseBoard(pos *Position, lines []string)`: Board state extraction
+
+- Multi-language support (EN, FR)- `parseXGID(pos *Position, xgid string)`: XGID parser
+
 - `parseEvaluation(line string, rank *int) *Evaluation`: Move evaluation parser
-- `parseCubeDecision(line string) *CubeDecision`: Cube decision parser
 
-#### bgf_parser.go
-Implements parsing for BGBlitz BGF binary match files:
-- `ParseBGF(filename string) (*Match, error)`: Main entry point
+### BGF Parser- `parseCubeDecision(line string) *CubeDecision`: Cube decision parser
+
+Two-phase JSON reader:
+
+1. Parse header (format, version, compression)#### bgf_parser.go
+
+2. Decompress gzip and extract match dataImplements parsing for BGBlitz BGF binary match files:
+
+3. Detect SMILE encoding (partial support)- `ParseBGF(filename string) (*Match, error)`: Main entry point
+
 - `(*Match) GetMatchInfo() map[string]interface{}`: Extract metadata
-- `(*Match) String() string`: Human-readable representation
+
+### Error Handling- `(*Match) String() string`: Human-readable representation
+
+Custom `ParseError` type includes filename, line number, and descriptive message for debugging.
 
 ## Design Decisions
 
+## Common Usage
+
 ### Parsing Approach
-
-**TXT Files**: Line-by-line state machine parser
-- Scans through file sequentially
-- Maintains state (in evaluation section, in cube decision, etc.)
-- Uses regular expressions for pattern matching
-- Extracts structured data from ASCII art and formatted text
-
-**BGF Files**: Two-phase reader
-1. Parse uncompressed JSON header
-2. Decompress and parse main data
-3. Detect SMILE encoding (full decoding requires external library)
-
-### Error Handling
-
-The package uses a custom `ParseError` type that includes:
-- Filename
-- Line number (when applicable)
-- Descriptive error message
-
-This provides clear context for debugging parsing issues.
-
-### Data Representation
-
-**Board State**: Array of 26 integers
-- Index 0: Unused
-- Index 1-24: Points (positive for X, negative for O)
-- Index 25: Bar
-
-**Maps for Dynamic Data**: Used for:
-- `OnBar`: Checkers on bar per player
-- `PipCount`: Pip count per player
-
-This allows flexible representation without fixed player ordering.
-
-## API Usage Patterns
 
 ### Basic Parsing
 
+```go**TXT Files**: Line-by-line state machine parser
+
+// Parse files- Scans through file sequentially
+
+pos, err := bgfparser.ParseTXT("position.txt")- Maintains state (in evaluation section, in cube decision, etc.)
+
+match, err := bgfparser.ParseBGF("match.bgf")- Uses regular expressions for pattern matching
+
+- Extracts structured data from ASCII art and formatted text
+
+// Parse from io.Reader (web uploads)
+
+pos, err := bgfparser.ParseTXTFromReader(file)**BGF Files**: Two-phase reader
+
+match, err := bgfparser.ParseBGFFromReader(file)1. Parse uncompressed JSON header
+
+2. Decompress and parse main data
+
+// Export to JSON3. Detect SMILE encoding (full decoding requires external library)
+
+jsonData, err := pos.ToJSON()
+
+```### Error Handling
+
+
+
+### Access EvaluationsThe package uses a custom `ParseError` type that includes:
+
+```go- Filename
+
+// Best move (first in array)- Line number (when applicable)
+
+if len(pos.Evaluations) > 0 {- Descriptive error message
+
+    best := pos.Evaluations[0]
+
+    fmt.Printf("%s: %.3f\n", best.Move, best.Equity)This provides clear context for debugging parsing issues.
+
+}
+
+### Data Representation
+
+// Find marked best
+
+for _, eval := range pos.Evaluations {**Board State**: Array of 26 integers
+
+    if eval.IsBest {- Index 0: Unused
+
+        fmt.Printf("Best: %s\n", eval.Move)- Index 1-24: Points (positive for X, negative for O)
+
+    }- Index 25: Bar
+
+}
+
+```**Maps for Dynamic Data**: Used for:
+
+- `OnBar`: Checkers on bar per player
+
+### Cube Decisions- `PipCount`: Pip count per player
+
 ```go
-// Parse a file
+
+if pos.CubeDecision != nil {This allows flexible representation without fixed player ordering.
+
+    fmt.Printf("Action: %s (MWC: %.1f%%)\n", 
+
+        pos.CubeDecision.Action, ## API Usage Patterns
+
+        pos.CubeDecision.MWC * 100)
+
+}### Basic Parsing
+
+```
+
+```go
+
+## Extension// Parse a file
+
 position, err := bgfparser.ParseTXT("file.txt")
-if err != nil {
-    // Handle error
-    if parseErr, ok := err.(*bgfparser.ParseError); ok {
+
+### Custom Analysisif err != nil {
+
+```go    // Handle error
+
+import "github.com/kevung/bgfparser"    if parseErr, ok := err.(*bgfparser.ParseError); ok {
+
         log.Printf("Parse error at line %d: %s", parseErr.Line, parseErr.Message)
-    }
-    return
-}
 
-// Use the position
-fmt.Printf("Player on roll: %s\n", position.OnRoll)
+func FindBlunders(pos *bgfparser.Position, threshold float64) []bgfparser.Evaluation {    }
+
+    var blunders []bgfparser.Evaluation    return
+
+    for _, eval := range pos.Evaluations[1:] {}
+
+        if -eval.Diff >= threshold {
+
+            blunders = append(blunders, eval)// Use the position
+
+        }fmt.Printf("Player on roll: %s\n", position.OnRoll)
+
+    }```
+
+    return blunders
+
+}### Accessing Evaluations
+
 ```
 
-### Accessing Evaluations
-
 ```go
-// Get best move
-if len(position.Evaluations) > 0 {
-    best := position.Evaluations[0]
-    fmt.Printf("Best: %s (%.3f)\n", best.Move, best.Equity)
-    
-    // Compare with second best
+
+### Adding Parsers// Get best move
+
+1. Define types in `types.go`if len(position.Evaluations) > 0 {
+
+2. Create parser file (e.g., `newformat_parser.go`)    best := position.Evaluations[0]
+
+3. Implement `ParseNewFormat(filename string) (*YourType, error)`    fmt.Printf("Best: %s (%.3f)\n", best.Move, best.Equity)
+
+4. Follow existing error patterns    
+
+5. Add tests    // Compare with second best
+
     if len(position.Evaluations) > 1 {
-        diff := position.Evaluations[0].Equity - position.Evaluations[1].Equity
+
+## Performance        diff := position.Evaluations[0].Equity - position.Evaluations[1].Equity
+
         fmt.Printf("Advantage: %.3f\n", diff)
-    }
-}
 
-// Find marked best move
+- **TXT parsing**: ~1-2ms per file    }
+
+- **BGF parsing**: ~10-50ms (depends on size/compression)}
+
+- **Memory**: ~500 bytes base + ~150 bytes per evaluation
+
+- **Tip**: Use goroutines for batch processing// Find marked best move
+
 for _, eval := range position.Evaluations {
-    if eval.IsBest {
+
+## Testing    if eval.IsBest {
+
         fmt.Printf("Marked best: %s\n", eval.Move)
-    }
-}
-```
 
-### Working with Cube Decisions
+Test coverage includes:    }
 
-```go
+- Valid and invalid files}
+
+- Multi-language support```
+
+- Edge cases (empty, malformed)
+
+- Various positions (cube, bar, Crawford)### Working with Cube Decisions
+
+
+
+See `parser_test.go` for examples.```go
+
 if position.CubeDecision != nil {
-    cd := position.CubeDecision
+
+## See Also    cd := position.CubeDecision
+
     fmt.Printf("Recommended: %s\n", cd.Action)
-    
-    switch cd.Action {
-    case "Double/Take":
-        fmt.Println("Should double and opponent should take")
+
+- [API Reference](API_REFERENCE.md) - Complete API documentation    
+
+- [Quick Reference](QUICK_REFERENCE.md) - Common patterns    switch cd.Action {
+
+- [BGF Format](BGF_FORMAT_SPECIFICATION.md) - BGF file format details    case "Double/Take":
+
+- [Web Interface](WEB_INTERFACE.md) - HTTP upload integration        fmt.Println("Should double and opponent should take")
+
     case "Double/Pass":
         fmt.Println("Should double and opponent should pass")
     case "No Double":
@@ -163,7 +282,7 @@ The package can be extended with analysis functions:
 ```go
 package myanalysis
 
-import "github.com/unger/bgfparser"
+import "github.com/kevung/bgfparser"
 
 // AnalyzeBlunders finds significant equity errors
 func AnalyzeBlunders(pos *bgfparser.Position, threshold float64) []bgfparser.Evaluation {

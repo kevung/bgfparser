@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/unger/bgfparser/internal/smile"
+	"github.com/kevung/bgfparser/internal/smile"
 )
 
 // ParseBGFFromReader parses a BGBlitz BGF file from an io.Reader

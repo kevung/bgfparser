@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/unger/bgfparser"
+	"github.com/kevung/bgfparser"
 )
 
 func main() {

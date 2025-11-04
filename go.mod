@@ -1,3 +1,3 @@
-module github.com/unger/bgfparser
+module github.com/kevung/bgfparser
 
 go 1.21

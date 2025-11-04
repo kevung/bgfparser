@@ -42,7 +42,7 @@ BGFParser is a comprehensive library for reading and analyzing backgammon data f
 ## Installation
 
 ```bash
-go get github.com/unger/bgfparser
+go get github.com/kevung/bgfparser
 ```
 
 ## Quick Start
@@ -55,8 +55,8 @@ package main
 import (
     "fmt"
     "log"
-    
-    "github.com/unger/bgfparser"
+
+    "github.com/kevung/bgfparser"
 )
 
 func main() {
@@ -87,7 +87,7 @@ func main() {
 import (
     "net/http"
     "encoding/json"
-    "github.com/unger/bgfparser"
+    "github.com/kevung/bgfparser"
 )
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -117,7 +117,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 ```go
 import (
     "bytes"
-    "github.com/unger/bgfparser"
+    "github.com/kevung/bgfparser"
 )
 
 func parseFromMemory(data []byte) (*bgfparser.Match, error) {
@@ -200,10 +200,12 @@ jsonData, err := pos.ToJSON()
 
 ## Documentation
 
-- [API Reference](doc/API_REFERENCE.md) - Complete API documentation
-- [Web Interface Guide](doc/WEB_INTERFACE.md) - Web integration patterns and examples
-- [BGF Format](doc/BGF_format.md) - BGF file format specification
-- [Package Documentation](doc/PACKAGE_DOCUMENTATION.md) - Detailed package docs
+- **[Documentation Index](doc/README.md)** - Complete documentation guide
+- **[Quick Reference](doc/QUICK_REFERENCE.md)** - Common patterns and examples
+- **[API Reference](doc/API_REFERENCE.md)** - Complete API documentation
+- **[Web Interface](doc/WEB_INTERFACE.md)** - HTTP uploads and database integration
+- **[BGF Format Specification](doc/BGF_FORMAT_SPECIFICATION.md)** - Binary format details
+- **[Development Guide](doc/DEVELOPMENT.md)** - Contributing and testing
 ```
 
 ## Data Types

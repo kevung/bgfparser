@@ -22,7 +22,7 @@ MIT License - See LICENSE file in this directory.
 ## Usage
 
 ```go
-import "github.com/unger/bgfparser/internal/smile"
+import "github.com/kevung/bgfparser/internal/smile"
 
 var result interface{}
 err := smile.Unmarshal(smileData, &result)

@@ -3,7 +3,7 @@ package bgfparser_test
 import (
 	"testing"
 
-	"github.com/unger/bgfparser"
+	"github.com/kevung/bgfparser"
 )
 
 func TestParseTXT_ValidFile(t *testing.T) {

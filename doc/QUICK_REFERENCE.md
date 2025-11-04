@@ -3,13 +3,13 @@
 ## Installation
 
 ```bash
-go get github.com/unger/bgfparser
+go get github.com/kevung/bgfparser
 ```
 
 ## File-Based Parsing
 
 ```go
-import "github.com/unger/bgfparser"
+import "github.com/kevung/bgfparser"
 
 // Parse BGF match file
 match, err := bgfparser.ParseBGF("match.bgf")
