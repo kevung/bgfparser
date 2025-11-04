@@ -16,58 +16,58 @@ import (
 type Position struct {
 	// Board represents the checkers on each point (1-24), bar, and off
 	// Points 1-24 for both players, positive for X, negative for O
-	Board [26]int // 0=unused, 1-24=points, 25=bar
+	Board [26]int `json:"board"`
 
 	// Player information
-	PlayerX string
-	PlayerO string
-	ScoreX  int
-	ScoreO  int
+	PlayerX string `json:"player_x"`
+	PlayerO string `json:"player_o"`
+	ScoreX  int    `json:"score_x"`
+	ScoreO  int    `json:"score_o"`
 
 	// Match information
-	MatchLength int
-	Crawford    bool
+	MatchLength int  `json:"match_length"`
+	Crawford    bool `json:"crawford"`
 
 	// Position identifiers
-	PositionID string // BGBlitz Position-ID
-	MatchID    string // BGBlitz Match-ID
-	XGID       string // XG format ID
+	PositionID string `json:"position_id"` // BGBlitz Position-ID
+	MatchID    string `json:"match_id"`    // BGBlitz Match-ID
+	XGID       string `json:"xgid"`        // XG format ID
 
 	// Current state
-	OnRoll    string // "X" or "O"
-	Dice      [2]int
-	CubeValue int
-	CubeOwner string // "", "X", "O"
-	OnBar     map[string]int
-	PipCount  map[string]int
+	OnRoll    string         `json:"on_roll"` // "X" or "O"
+	Dice      [2]int         `json:"dice"`
+	CubeValue int            `json:"cube_value"`
+	CubeOwner string         `json:"cube_owner"` // "", "X", "O"
+	OnBar     map[string]int `json:"on_bar"`
+	PipCount  map[string]int `json:"pip_count"`
 
 	// Evaluation data
-	Evaluations  []Evaluation
-	CubeDecision *CubeDecision
+	Evaluations  []Evaluation  `json:"evaluations,omitempty"`
+	CubeDecision *CubeDecision `json:"cube_decision,omitempty"`
 }
 
 // Evaluation represents a move evaluation
 type Evaluation struct {
-	Rank   int
-	Move   string
-	Equity float64
-	Diff   float64
-	Win    float64
-	WinG   float64
-	WinBG  float64
-	LoseG  float64
-	LoseBG float64
-	IsBest bool
+	Rank   int     `json:"rank"`
+	Move   string  `json:"move"`
+	Equity float64 `json:"equity"`
+	Diff   float64 `json:"diff"`
+	Win    float64 `json:"win"`
+	WinG   float64 `json:"win_g"`
+	WinBG  float64 `json:"win_bg"`
+	LoseG  float64 `json:"lose_g"`
+	LoseBG float64 `json:"lose_bg"`
+	IsBest bool    `json:"is_best"`
 }
 
 // CubeDecision represents a cube decision analysis
 type CubeDecision struct {
-	Action  string  // "Double/Take", "Double/Pass", "No Double"
-	MWC     float64 // Match Winning Chances
-	MWCDiff float64
-	EMG     float64 // EMG (Normalized equity)
-	EMGDiff float64
-	IsBest  bool
+	Action  string  `json:"action"` // "Double/Take", "Double/Pass", "No Double"
+	MWC     float64 `json:"mwc"`    // Match Winning Chances
+	MWCDiff float64 `json:"mwc_diff"`
+	EMG     float64 `json:"emg"` // EMG (Normalized equity)
+	EMGDiff float64 `json:"emg_diff"`
+	IsBest  bool    `json:"is_best"`
 }
 
 // Match represents a complete backgammon match from a BGF file
@@ -78,10 +78,10 @@ type Match struct {
 	UseSmile bool   `json:"useSmile"`
 
 	// Match data will be populated from the JSON structure
-	Data map[string]interface{}
+	Data map[string]interface{} `json:"data,omitempty"`
 
 	// DecodingWarning contains any warnings from partial decoding
-	DecodingWarning string
+	DecodingWarning string `json:"decoding_warning,omitempty"`
 }
 
 // ParseError represents an error during parsing

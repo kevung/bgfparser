@@ -33,6 +33,12 @@ BGFParser is a comprehensive library for reading and analyzing backgammon data f
   - Handles nested objects and arrays
 - ⚠️ Complex deeply nested SMILE structures may not decode completely (continues with partial data)
 
+### Web-Ready API 🆕
+- ✅ Parse from files, HTTP uploads, memory buffers, or any `io.Reader`
+- ✅ JSON serializable structures for easy API responses
+- ✅ No file system required - parse directly from uploaded data
+- ✅ Database-ready structures with JSON tags
+
 ## Installation
 
 ```bash
@@ -41,7 +47,7 @@ go get github.com/unger/bgfparser
 
 ## Quick Start
 
-### Parsing a Position (TXT) File
+### Parse from File
 
 ```go
 package main
@@ -75,41 +81,129 @@ func main() {
 }
 ```
 
-### Parsing a Match (BGF) File
+### Parse from HTTP Upload 🆕
 
 ```go
-package main
-
 import (
-    "fmt"
-    "log"
-    
+    "net/http"
+    "encoding/json"
     "github.com/unger/bgfparser"
 )
 
-func main() {
-    // Parse a BGF match file
-    match, err := bgfparser.ParseBGF("match.bgf")
+func uploadHandler(w http.ResponseWriter, r *http.Request) {
+    // Get uploaded file
+    file, _, err := r.FormFile("bgffile")
     if err != nil {
-        log.Fatal(err)
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+    defer file.Close()
+    
+    // Parse directly from upload (no temp file needed!)
+    match, err := bgfparser.ParseBGFFromReader(file)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
     }
     
-    // Display match information
-    fmt.Printf("Format: %s v%s\n", match.Format, match.Version)
-    fmt.Printf("Compressed: %v\n", match.Compress)
-    fmt.Printf("Uses SMILE: %v\n", match.UseSmile)
-    
-    // Check for decoding warnings
-    if match.DecodingWarning != "" {
-        fmt.Printf("Warning: %s\n", match.DecodingWarning)
-    }
-    
-    // Get match metadata
-    info := match.GetMatchInfo()
-    for key, value := range info {
-        fmt.Printf("%s: %v\n", key, value)
-    }
+    // Return JSON response
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(match)
 }
+```
+
+### Parse from Memory 🆕
+
+```go
+import (
+    "bytes"
+    "github.com/unger/bgfparser"
+)
+
+func parseFromMemory(data []byte) (*bgfparser.Match, error) {
+    reader := bytes.NewReader(data)
+    return bgfparser.ParseBGFFromReader(reader)
+}
+```
+
+### Export to JSON 🆕
+
+```go
+// Parse any file
+pos, _ := bgfparser.ParseTXT("position.txt")
+
+// Get JSON output
+jsonData, err := pos.ToJSON()
+if err != nil {
+    panic(err)
+}
+
+fmt.Println(string(jsonData))
+```
+
+## Web Server Example 🆕
+
+A complete web server is provided in `examples/web_server/`:
+
+```bash
+cd examples/web_server
+go run main.go
+```
+
+Then visit http://localhost:8080 to upload and analyze BGF/TXT files through a web interface.
+
+## API Overview
+
+### File-Based Parsing
+
+```go
+// Parse TXT position file
+pos, err := bgfparser.ParseTXT("position.txt")
+
+// Parse BGF match file
+match, err := bgfparser.ParseBGF("match.bgf")
+```
+
+### Web-Ready Parsing (io.Reader) 🆕
+
+```go
+// Parse from any io.Reader source
+match, err := bgfparser.ParseBGFFromReader(reader)
+pos, err := bgfparser.ParseTXTFromReader(reader)
+
+// Works with:
+// - HTTP file uploads (multipart.File)
+// - Memory buffers (bytes.Reader)
+// - Network streams (net.Conn)
+// - Any io.Reader implementation
+```
+
+### JSON Export 🆕
+
+```go
+### Export to JSON 🆕
+
+```go
+// Export to JSON
+jsonData, err := match.ToJSON()
+jsonData, err := pos.ToJSON()
+```
+
+## Use Cases
+
+- **Web Applications**: Parse uploaded BGF/TXT files in HTTP handlers
+- **REST APIs**: Provide backgammon position analysis endpoints
+- **Database Storage**: Import positions and matches into SQL/NoSQL databases
+- **Batch Processing**: Analyze collections of match/position files
+- **Match Servers**: Real-time position analysis services
+- **Statistical Analysis**: Extract move quality, equity, and win rates
+
+## Documentation
+
+- [API Reference](doc/API_REFERENCE.md) - Complete API documentation
+- [Web Interface Guide](doc/WEB_INTERFACE.md) - Web integration patterns and examples
+- [BGF Format](doc/BGF_format.md) - BGF file format specification
+- [Package Documentation](doc/PACKAGE_DOCUMENTATION.md) - Detailed package docs
 ```
 
 ## Data Types
@@ -192,7 +286,7 @@ type Match struct {
 
 ## Examples
 
-The package includes three complete example programs in the `examples/` directory:
+The package includes example programs in the `examples/` directory:
 
 ### 1. parse_txt
 Detailed parser for TXT position files showing all available data.
@@ -213,6 +307,15 @@ Batch processor for parsing all files in a directory.
 
 ```bash
 go run examples/batch_parse/main.go tmp/
+```
+
+### 4. web_server 🆕
+Complete web server with file upload interface.
+
+```bash
+cd examples/web_server
+go run main.go
+# Visit http://localhost:8080
 ```
 
 ## File Format Details
@@ -271,15 +374,20 @@ bgfparser/
 ├── LICENSE              # MIT License
 ├── README.md           # This file
 ├── go.mod              # Go module definition
-├── types.go            # Core data types
-├── txt_parser.go       # TXT format parser
-├── bgf_parser.go       # BGF format parser
+├── types.go            # Core data types (JSON-serializable)
+├── txt_parser.go       # TXT format parser (file-based)
+├── bgf_parser.go       # BGF format parser (file-based)
+├── web.go              # Web-ready parsers (io.Reader) 🆕
+├── txt_parser_helpers.go # TXT parsing utilities 🆕
 ├── doc/
-│   └── BGF_format.md   # BGF format documentation
+│   ├── API_REFERENCE.md     # Complete API reference
+│   ├── WEB_INTERFACE.md     # Web integration guide 🆕
+│   └── BGF_format.md        # BGF format specification
 ├── examples/
 │   ├── parse_txt/      # TXT parser example
 │   ├── parse_bgf/      # BGF parser example
-│   └── batch_parse/    # Batch processing example
+│   ├── batch_parse/    # Batch processing example
+│   └── web_server/     # Web server example 🆕
 └── tmp/                # Sample data files
     ├── *.txt           # Position files
     └── *.bgf           # Match files
@@ -331,6 +439,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - BGBlitz for creating the analysis software
 - The backgammon community for the XGID and position notation standards
+- Inspired by the web interface design of [xgparser](https://github.com/kevung/xgparser)
 
 ## Support
 

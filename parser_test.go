@@ -76,12 +76,11 @@ func TestParseTXT_NonExistentFile(t *testing.T) {
 func TestParseBGF_ValidFile(t *testing.T) {
 	match, err := bgfparser.ParseBGF("tmp/TachiAI_V_player_Nov_2__2025__16_55.bgf")
 
-	// We expect an error because SMILE is not supported
-	if err == nil {
-		t.Error("Expected error for SMILE-encoded file")
+	// SMILE decoding is now supported, so we should not get an error
+	if err != nil {
+		t.Fatalf("ParseBGF failed: %v", err)
 	}
 
-	// But we should still get the match structure with header info
 	if match == nil {
 		t.Fatal("ParseBGF returned nil match")
 	}

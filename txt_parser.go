@@ -1,169 +1,29 @@
 package bgfparser
 
 import (
-	"bufio"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-// ParseTXT parses a BGBlitz position text file
+// ParseTXT parses a BGBlitz position text file from disk
+// This is a convenience wrapper around ParseTXTFromReader that handles file reading.
 func ParseTXT(filename string) (*Position, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		return nil, err
+		return nil, &ParseError{File: filename, Message: err.Error()}
 	}
 	defer file.Close()
 
-	pos := &Position{
-		OnBar:    make(map[string]int),
-		PipCount: make(map[string]int),
-	}
-
-	scanner := bufio.NewScanner(file)
-	lineNum := 0
-	boardLines := []string{}
-	inEvaluation := false
-	inCubeDecision := false
-	evalRank := 0
-
-	for scanner.Scan() {
-		lineNum++
-		line := scanner.Text()
-
-		// Parse board (lines with |)
-		if strings.Contains(line, "|") && strings.Contains(line, "+") {
-			// Board boundary lines
-			continue
-		} else if strings.Contains(line, "|") && (strings.Contains(line, "BAR") || strings.Contains(line, "X") || strings.Contains(line, "O")) {
-			boardLines = append(boardLines, line)
+	pos, err := ParseTXTFromReader(file)
+	if err != nil {
+		// Add filename to error if not already present
+		if parseErr, ok := err.(*ParseError); ok && parseErr.File == "" {
+			parseErr.File = filename
+			return nil, parseErr
 		}
-
-		// Parse player names and scores from header line
-		if strings.Contains(line, "O:") && strings.Contains(line, "X:") {
-			parts := strings.Fields(line)
-			for i, part := range parts {
-				if part == "O:" && i+1 < len(parts) {
-					pos.PlayerO = parts[i+1]
-					if i+2 < len(parts) {
-						if score, err := strconv.Atoi(parts[i+2]); err == nil {
-							pos.PipCount["O"] = score
-						}
-					}
-				}
-				if part == "X:" && i+1 < len(parts) {
-					pos.PlayerX = parts[i+1]
-					if i+2 < len(parts) {
-						if score, err := strconv.Atoi(parts[i+2]); err == nil {
-							pos.PipCount["X"] = score
-						}
-					}
-				}
-			}
-		}
-
-		// Parse Position-ID, Match-ID
-		if strings.Contains(line, "Position-ID:") {
-			re := regexp.MustCompile(`Position-ID:\s*(\S+)\s+Match-ID:\s*(\S+)`)
-			matches := re.FindStringSubmatch(line)
-			if len(matches) == 3 {
-				pos.PositionID = matches[1]
-				pos.MatchID = matches[2]
-			}
-		}
-
-		// Parse XGID
-		if strings.Contains(line, "XGID=") {
-			re := regexp.MustCompile(`XGID=(\S+)`)
-			matches := re.FindStringSubmatch(line)
-			if len(matches) == 2 {
-				pos.XGID = matches[1]
-				parseXGID(pos, matches[1])
-			}
-		}
-
-		// Parse match score line
-		if strings.Contains(line, "point match") {
-			re := regexp.MustCompile(`(\S+)\s*-\s*(\d+)\s+(\S+)\s*-\s*(\d+)\s+in a\s+(\d+)\s+point match`)
-			matches := re.FindStringSubmatch(line)
-			if len(matches) == 6 {
-				pos.ScoreO, _ = strconv.Atoi(matches[2])
-				pos.ScoreX, _ = strconv.Atoi(matches[4])
-				pos.MatchLength, _ = strconv.Atoi(matches[5])
-			}
-		}
-
-		// Parse current player to move
-		if strings.Contains(line, "to move") {
-			if strings.Contains(line, pos.PlayerX) {
-				pos.OnRoll = "X"
-			} else if strings.Contains(line, pos.PlayerO) {
-				pos.OnRoll = "O"
-			}
-			// Parse dice
-			re := regexp.MustCompile(`(\d+)-(\d+)`)
-			matches := re.FindStringSubmatch(line)
-			if len(matches) == 3 {
-				pos.Dice[0], _ = strconv.Atoi(matches[1])
-				pos.Dice[1], _ = strconv.Atoi(matches[2])
-			}
-		}
-
-		// Parse cube value from board (looking for cube display)
-		if strings.Contains(line, "+--+") {
-			scanner.Scan()
-			cubeLine := scanner.Text()
-			if strings.Contains(cubeLine, "|") {
-				re := regexp.MustCompile(`\|\s*(\d+)\s*\|`)
-				matches := re.FindStringSubmatch(cubeLine)
-				if len(matches) == 2 {
-					pos.CubeValue, _ = strconv.Atoi(matches[1])
-				}
-			}
-		}
-
-		// Detect evaluation section
-		if strings.Contains(line, "Evaluation") || strings.Contains(line, "Évaluation") {
-			inEvaluation = true
-			evalRank = 0
-			continue
-		}
-
-		// Parse evaluations
-		if inEvaluation && strings.TrimSpace(line) == "==========" {
-			continue
-		}
-		if inEvaluation && len(strings.TrimSpace(line)) > 0 {
-			eval := parseEvaluation(line, &evalRank)
-			if eval != nil {
-				pos.Evaluations = append(pos.Evaluations, *eval)
-			}
-		}
-
-		// Detect cube decision section
-		if strings.Contains(line, "MWC") && strings.Contains(line, "EMG") {
-			inCubeDecision = true
-			inEvaluation = false
-			continue
-		}
-
-		// Parse cube decisions
-		if inCubeDecision && (strings.Contains(line, "Double") || strings.Contains(line, "No Double")) {
-			decision := parseCubeDecision(line)
-			if decision != nil {
-				pos.CubeDecision = decision
-			}
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, &ParseError{File: filename, Message: err.Error()}
-	}
-
-	// Parse the board from collected lines
-	if len(boardLines) > 0 {
-		parseBoard(pos, boardLines)
+		return nil, err
 	}
 
 	return pos, nil

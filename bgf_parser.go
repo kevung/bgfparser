@@ -1,85 +1,31 @@
 package bgfparser
 
 import (
-	"bufio"
-	"bytes"
-	"compress/gzip"
-	"encoding/json"
 	"fmt"
-	"io"
 	"os"
-
-	"github.com/unger/bgfparser/internal/smile"
 )
 
-// ParseBGF parses a BGBlitz BGF (binary match) file
+// ParseBGF parses a BGBlitz BGF (binary match) file from disk
+// This is a convenience wrapper around ParseBGFFromReader that handles file reading.
+//
 // BGF files consist of:
 // 1. A JSON header line with format info (uncompressed)
 // 2. The rest of the file is gzipped JSON data (optionally SMILE encoded)
 func ParseBGF(filename string) (*Match, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		return nil, err
+		return nil, &ParseError{File: filename, Message: err.Error()}
 	}
 	defer file.Close()
 
-	reader := bufio.NewReader(file)
-
-	// Read first line (JSON header)
-	headerLine, err := reader.ReadBytes('\n')
+	match, err := ParseBGFFromReader(file)
 	if err != nil {
-		return nil, &ParseError{File: filename, Message: "failed to read header: " + err.Error()}
-	}
-
-	// Parse header
-	match := &Match{}
-	if err := json.Unmarshal(headerLine, match); err != nil {
-		return nil, &ParseError{File: filename, Message: "failed to parse header: " + err.Error()}
-	}
-
-	// Read the rest of the file
-	restData, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, &ParseError{File: filename, Message: "failed to read data: " + err.Error()}
-	}
-
-	// Decompress if compressed
-	var jsonData []byte
-	if match.Compress {
-		gzReader, err := gzip.NewReader(bytes.NewReader(restData))
-		if err != nil {
-			return nil, &ParseError{File: filename, Message: "failed to create gzip reader: " + err.Error()}
+		// Add filename to error if not already present
+		if parseErr, ok := err.(*ParseError); ok && parseErr.File == "" {
+			parseErr.File = filename
+			return nil, parseErr
 		}
-		defer gzReader.Close()
-
-		jsonData, err = io.ReadAll(gzReader)
-		if err != nil {
-			return nil, &ParseError{File: filename, Message: "failed to decompress: " + err.Error()}
-		}
-	} else {
-		jsonData = restData
-	}
-
-	// Handle SMILE encoding
-	if match.UseSmile {
-		// SMILE is a binary JSON format - use internal smile decoder
-		var data interface{}
-		if err := smile.Unmarshal(jsonData, &data); err != nil {
-			return nil, &ParseError{File: filename, Message: "failed to decode SMILE: " + err.Error()}
-		}
-
-		// Convert to map[string]interface{} if possible
-		if dataMap, ok := data.(map[string]interface{}); ok {
-			match.Data = dataMap
-		} else {
-			// Wrap non-map data
-			match.Data = map[string]interface{}{"_data": data}
-		}
-	} else {
-		// Parse regular JSON
-		if err := json.Unmarshal(jsonData, &match.Data); err != nil {
-			return nil, &ParseError{File: filename, Message: "failed to parse JSON: " + err.Error()}
-		}
+		return nil, err
 	}
 
 	return match, nil
