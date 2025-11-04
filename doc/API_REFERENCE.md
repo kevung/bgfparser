@@ -1,10 +1,7 @@
 # BGF Parser API Reference
 
-## Package Information
 
 Import path: `github.com/kevung/bgfparser`
-
-### Overview
 
 The bgfparser package provides parsers for BGBlitz backgammon data files in both TXT (position) and BGF (match) formats.
 
@@ -16,7 +13,6 @@ The bgfparser package provides parsers for BGBlitz backgammon data files in both
 
 ```go
 func ParseTXT(filename string) (*Position, error)
-```
 
 ParseTXT parses a BGBlitz position text file and returns a Position struct containing all extracted data.
 
@@ -26,11 +22,8 @@ ParseTXT parses a BGBlitz position text file and returns a Position struct conta
 **Returns:**
 - `*Position`: Parsed position data
 - `error`: Error if file cannot be read or parsed
-
 **Example:**
 ```go
-pos, err := bgfparser.ParseTXT("game.txt")
-if err != nil {
     log.Fatal(err)
 }
 fmt.Printf("Player on roll: %s\n", pos.OnRoll)
@@ -51,9 +44,7 @@ ParseBGF parses a BGBlitz BGF binary match file. BGF files consist of a JSON hea
 
 **Returns:**
 - `*Match`: Parsed match data
-- `error`: Error if file cannot be read or parsed (returns partial data with error if SMILE encoding detected)
-
-**Note:** Files using SMILE encoding will return the match header but with an error indicating SMILE is not supported.
+- `error`: Error if file cannot be read or parsed
 
 **Example:**
 ```go
@@ -498,11 +489,9 @@ if err != nil {
 ## Limitations
 
 1. **Board state extraction**: Partial implementation from ASCII art
-2. **SMILE decoding**: Not supported (requires external library)
-3. **Language support**: Tested with English and French
-4. **Statistics**: Some evaluation statistics may not be fully extracted
+2. **Language support**: Tested with English and French
+3. **Statistics**: Some evaluation statistics may not be fully extracted
 
----
 
 ## See Also
 

@@ -514,7 +514,6 @@ type Match struct {
     Compress bool                   `json:"compress"`
     UseSmile bool                   `json:"useSmile"`
     Data     map[string]interface{} `json:"data,omitempty"`
-    DecodingWarning string          `json:"decoding_warning,omitempty"`
 }
 ```
 

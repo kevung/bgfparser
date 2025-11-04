@@ -50,7 +50,7 @@ Two-phase JSON reader:
 
 2. Decompress gzip and extract match dataImplements parsing for BGBlitz BGF binary match files:
 
-3. Detect SMILE encoding (partial support)- `ParseBGF(filename string) (*Match, error)`: Main entry point
+3. Detect SMILE encoding (supported) - `ParseBGF(filename string) (*Match, error)`: Main entry point
 
 - `(*Match) GetMatchInfo() map[string]interface{}`: Extract metadata
 
@@ -84,7 +84,7 @@ match, err := bgfparser.ParseBGFFromReader(file)1. Parse uncompressed JSON heade
 
 2. Decompress and parse main data
 
-// Export to JSON3. Detect SMILE encoding (full decoding requires external library)
+// Export to JSON
 
 jsonData, err := pos.ToJSON()
 
@@ -386,17 +386,14 @@ func TestParseTXT(t *testing.T) {
 
 ### Issue: SMILE decoding fails
 
-**Solution**: SMILE is not yet fully supported. You can:
-1. Export matches without SMILE encoding
-2. Integrate a SMILE decoder library
-3. Use the header information available
+**Solution**: SMILE decoding is supported via the built-in decoder in `internal/smile`. If you encounter a failure, the file may use an unsupported SMILE extension or be corrupted. Please open an issue with the sample file.
 
 ## Future Development
 
 ### Planned Features
 
 1. **Full board parsing**: Complete extraction of checker positions from ASCII art
-2. **SMILE support**: Integration with SMILE decoder
+2. **Board parsing**: Complete extraction of checker positions from ASCII art
 3. **Statistics aggregation**: Functions to aggregate data across multiple positions
 4. **Match analysis**: Tools for analyzing entire matches
 5. **Export functions**: Convert positions to other formats (XGID, GNUbg, etc.)

@@ -34,28 +34,12 @@ func main() {
 	fmt.Printf("Compressed: %v\n", match.Compress)
 	fmt.Printf("Uses SMILE encoding: %v\n", match.UseSmile)
 
-	// Display any decoding warnings
-	if match.DecodingWarning != "" {
-		fmt.Printf("\n⚠️  Warning: %s\n", match.DecodingWarning)
-		fmt.Println("\nNote: Full SMILE decoding requires additional libraries.")
-		fmt.Println("However, we've extracted some information from the binary data:")
-	}
-
 	// Display extracted information
 	if len(match.Data) > 0 {
 		fmt.Println("\n=== Match Data ===")
-
-		// Check if we have a partially decoded structure or full decoded data
-		var decodedData map[string]interface{}
-
-		if partialData, ok := match.Data["_partiallyDecoded"].(map[string]interface{}); ok {
-			decodedData = partialData
-		} else if _, hasError := match.Data["_decodeError"]; !hasError {
-			// If no decode error, the Data itself contains the decoded fields
-			decodedData = match.Data
-		}
-
-		if decodedData != nil && len(decodedData) > 0 {
+		// Print all top-level decoded fields (skip internal keys starting with _)
+		decodedData := match.Data
+		if len(decodedData) > 0 {
 			fmt.Println("\n--- All Decoded Fields ---")
 
 			// Show all fields sorted by name for readability
@@ -127,23 +111,7 @@ func main() {
 					fmt.Printf("  %s: %v\n", cleanKey, val)
 				}
 			}
-
 			fmt.Printf("\nTotal decoded fields: %d\n", len(keys))
-
-			// Show decoding progress metadata
-			if offset, ok := match.Data["_finalOffset"].(int); ok {
-				fmt.Printf("Final decoding offset: %d bytes\n", offset)
-			} else if offset, ok := match.Data["_decodedOffset"].(int); ok {
-				fmt.Printf("Decoded up to offset: %d bytes\n", offset)
-			}
-
-			if totalBytes, ok := match.Data["_totalBytes"].(int); ok {
-				fmt.Printf("Total file size: %d bytes\n", totalBytes)
-			}
-
-			if pct, ok := match.Data["_percentDecoded"].(float64); ok {
-				fmt.Printf("Decoding progress: %.2f%%\n", pct)
-			}
 		}
 
 		info := match.GetMatchInfo()
@@ -158,21 +126,6 @@ func main() {
 			}
 		}
 
-		// If SMILE encoded, show extracted strings
-		if match.UseSmile {
-			if strings, ok := match.Data["_extractedStrings"].([]string); ok && len(strings) > 0 {
-				fmt.Println("\n=== Extracted Strings (from binary data) ===")
-				for i, s := range strings {
-					if len(s) > 50 {
-						fmt.Printf("%d: %s...\n", i+1, s[:50])
-					} else {
-						fmt.Printf("%d: %s\n", i+1, s)
-					}
-				}
-			}
-			if size, ok := match.Data["_dataSize"].(int); ok {
-				fmt.Printf("\nBinary data size: %d bytes\n", size)
-			}
-		}
+		// No additional SMILE extraction needed; full data is available in Data
 	}
 }

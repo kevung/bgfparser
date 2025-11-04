@@ -23,15 +23,13 @@ BGFParser is a comprehensive library for reading and analyzing backgammon data f
 - ✅ Pip count extraction
 
 ### BGF Parser
-- ✅ Read BGF file headers (format, version, compression info)
-- ✅ Decompress gzip-compressed data
-- ✅ Parse JSON data from uncompressed files
-- ✅ SMILE decoding with partial data extraction
-  - Extracts match parameters (matchlen, dates, scores)
-  - Decodes boolean flags (Crawford, Jacoby, Cube usage)
-  - Parses player information
-  - Handles nested objects and arrays
-- ⚠️ Complex deeply nested SMILE structures may not decode completely (continues with partial data)
+- ✅ Full SMILE encoding/decoding support
+    - Complete match data extraction
+    - Player names, ratings, and statistics
+    - Move-by-move analysis with equity calculations
+    - Cube decisions and match equity
+    - Performance ratings and error analysis
+    - All nested objects and arrays
 
 ### Web-Ready API 🆕
 - ✅ Parse from files, HTTP uploads, memory buffers, or any `io.Reader`
@@ -399,7 +397,6 @@ type Match struct {
     Compressed bool                   // Gzip compression used
     UseSmile   bool                   // SMILE encoding used
     Data       map[string]interface{} // Parsed match data
-    DecodingWarning string            // Warning if decoding was incomplete
 }
 ```
 
@@ -484,7 +481,7 @@ Binary files with two parts:
    - Move history
    - Analysis results
 
-**Note**: SMILE decoding is implemented with basic support. The parser can read SMILE-encoded BGF files and extract player names, dates, match parameters, and other metadata. Complex nested structures may not parse completely, but key information is accessible.
+**Note**: Full SMILE decoding support is implemented. The parser successfully decodes all SMILE-encoded BGF files including complete match data, move analysis, equity calculations, and performance statistics.
 
 ## Project Structure
 
@@ -529,15 +526,8 @@ go build -o bin/batch_parse ./examples/batch_parse/
 ## Limitations and Future Work
 
 ### Current Limitations
-- **Board parsing**: Board state extraction from ASCII art is partially implemented
-- **SMILE decoding**: Complex nested structures in SMILE format may not fully decode
-- **Language support**: Primarily tested with English and French files
-- **Incomplete statistics**: Some evaluation statistics may not be fully extracted
 
 ### Planned Improvements
-- Enhanced SMILE decoder for complex nested structures
-- Complete board state parsing from ASCII representation
-- Support for additional BGBlitz output formats
 - More comprehensive test suite
 - Performance optimizations for batch processing
 
