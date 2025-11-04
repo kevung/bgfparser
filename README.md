@@ -546,9 +546,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-- BGBlitz for creating the analysis software
-- The backgammon community for the XGID and position notation standards
-- Inspired by the web interface design of [xgparser](https://github.com/kevung/xgparser)
+- [Frank Berger](https://www.bgblitz.com/) for creating BGBlitz, the backgammon analysis software
+- [LeLuxNet](https://gitlab.com/LeLuxNet/X) for the SMILE decoder implementation
 
 ## Support
 
