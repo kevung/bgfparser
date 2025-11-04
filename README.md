@@ -189,6 +189,123 @@ jsonData, err := match.ToJSON()
 jsonData, err := pos.ToJSON()
 ```
 
+## Command-Line Tools
+
+The package includes several CLI tools for parsing BGF and TXT files:
+
+### Building the Tools
+
+```bash
+# Build all tools
+go build -o bin/parse_txt ./examples/parse_txt/
+go build -o bin/parse_bgf ./examples/parse_bgf/
+go build -o bin/batch_parse ./examples/batch_parse/
+go build -o bin/web_server ./examples/web_server/
+
+# Or build individually
+cd examples/parse_txt && go build
+cd examples/parse_bgf && go build
+cd examples/batch_parse && go build
+cd examples/web_server && go build
+```
+
+### parse_txt - Parse TXT Position Files
+
+Parse and display information from a BGBlitz TXT position file.
+
+```bash
+# Usage
+./bin/parse_txt <filename.txt>
+
+# Example
+./bin/parse_txt tmp/blunder21_EN.txt
+
+# Output shows:
+# - Player names and scores
+# - Match length and Crawford status
+# - Position on roll and dice
+# - Cube value and owner
+# - Move evaluations with equity
+# - Cube decisions
+# - XGID and Position IDs
+```
+
+### parse_bgf - Parse BGF Match Files
+
+Parse and display information from a BGBlitz BGF binary match file.
+
+```bash
+# Usage
+./bin/parse_bgf <filename.bgf>
+
+# Example
+./bin/parse_bgf tmp/TachiAI_V_player_Nov_2__2025__16_55.bgf
+
+# Output shows:
+# - File format and version
+# - Compression status
+# - SMILE encoding detection
+# - Match metadata (players, dates, scores)
+# - Number of decoded fields
+# - Game data (if available)
+```
+
+### batch_parse - Process Multiple Files
+
+Parse all BGF and TXT files in a directory.
+
+```bash
+# Usage
+./bin/batch_parse <directory>
+
+# Example
+./bin/batch_parse tmp/
+
+# Processes:
+# - All .txt files (position data)
+# - All .bgf files (match data)
+# - Shows summary for each file
+```
+
+### web_server - Web Interface
+
+Run a web server with upload interface for analyzing BGF and TXT files.
+
+```bash
+# Start server
+./bin/web_server
+
+# Or run directly
+cd examples/web_server && go run main.go
+
+# Server starts on http://localhost:8080
+# Upload BGF/TXT files through web interface
+# Get JSON responses with parsed data
+```
+
+**API Endpoints:**
+- `POST /upload/bgf` - Upload and parse BGF file
+- `POST /upload/txt` - Upload and parse TXT file
+- `GET /health` - Health check
+
+### Running Without Building
+
+You can also run tools directly with `go run`:
+
+```bash
+# Parse TXT file
+go run examples/parse_txt/main.go tmp/blunder21_EN.txt
+
+# Parse BGF file
+go run examples/parse_bgf/main.go tmp/match.bgf
+
+# Batch process directory
+go run examples/batch_parse/main.go tmp/
+
+# Start web server
+go run examples/web_server/main.go
+```
+
 ## Use Cases
 
 - **Web Applications**: Parse uploaded BGF/TXT files in HTTP handlers
