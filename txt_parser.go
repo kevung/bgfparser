@@ -86,8 +86,24 @@ func parseXGID(pos *Position, xgid string) {
 
 // parseEvaluation parses a single evaluation line
 func parseEvaluation(line string, rank *int) *Evaluation {
+	originalLine := line
 	line = strings.TrimSpace(line)
 	if line == "" || strings.HasPrefix(line, "=") {
+		return nil
+	}
+
+	// Skip lines that are just probabilities (second line of each evaluation)
+	// These lines start with a decimal number (e.g., "0.254  0.000...")
+	// after trimming, not with a rank marker (e.g., "1." or "1)")
+	// Check the original untrimmed line for the rank marker
+	if !regexp.MustCompile(`^\s*\d+[.)]`).MatchString(originalLine) {
+		// No rank marker at start of original line, so this is not an evaluation line
+		return nil
+	}
+
+	// Also skip if the trimmed line starts with a decimal number
+	// (probability lines like "0.254  0.000  0.000  -  0.746...")
+	if regexp.MustCompile(`^\d+\.\d+\s`).MatchString(line) {
 		return nil
 	}
 
@@ -99,48 +115,84 @@ func parseEvaluation(line string, rank *int) *Evaluation {
 		line = strings.ReplaceAll(line, "*", "")
 	}
 
-	// Parse rank number at start
-	re := regexp.MustCompile(`^(\d+)\)`)
+	// Parse rank number at start - support both formats: "1)" and "1."
+	// Format 1: "1) 13-11 24-23                0.473 / -0.289"
+	// Format 2: "1.   0.124 mwp /  -0.492            19/18, 14/12"
+	re := regexp.MustCompile(`^(\d+)[.)]`)
 	matches := re.FindStringSubmatch(line)
 	if len(matches) == 2 {
-		*rank++
-		eval.Rank = *rank
+		rankNum, _ := strconv.Atoi(matches[1])
+		eval.Rank = rankNum
+		*rank = rankNum
 		line = line[len(matches[0]):]
 	} else {
 		return nil
 	}
 
-	// Split into move and numbers
+	// Trim whitespace after rank
+	line = strings.TrimSpace(line)
+
+	// Parse the rest of the line
 	parts := strings.Fields(line)
 	if len(parts) < 2 {
 		return nil
 	}
 
-	// Extract move (everything before the equity value)
-	moveEnd := 0
-	for i, part := range parts {
-		// Look for the equity value (format: 0.123 or -0.123)
-		if matched, _ := regexp.MatchString(`^-?\d+\.\d+$`, part); matched {
-			moveEnd = i
-			break
-		}
-	}
+	// Check for "mwp" format (new style)
+	// Format: "0.124 mwp /  -0.492            19/18, 14/12"
+	if len(parts) >= 2 && parts[1] == "mwp" {
+		// New format with mwp
+		eval.Equity, _ = strconv.ParseFloat(parts[0], 64)
 
-	if moveEnd > 0 {
-		eval.Move = strings.Join(parts[:moveEnd], " ")
-
-		// Parse equity and diff
-		if moveEnd < len(parts) {
-			eval.Equity, _ = strconv.ParseFloat(parts[moveEnd], 64)
+		// Find where the move starts (after the "/" and equity values)
+		moveStartIdx := -1
+		for i := 0; i < len(parts); i++ {
+			if parts[i] == "/" && i+1 < len(parts) {
+				// The next element should be the equity value (negative)
+				// Move starts after the equity and optional diff
+				moveStartIdx = i + 2 // Skip "/" and equity
+				// Check if there's a diff in parentheses
+				if moveStartIdx < len(parts) && strings.HasPrefix(parts[moveStartIdx], "(") {
+					// Parse diff
+					diffStr := strings.Trim(parts[moveStartIdx], "()")
+					eval.Diff, _ = strconv.ParseFloat(diffStr, 64)
+					moveStartIdx++
+				}
+				break
+			}
 		}
-		if moveEnd+2 < len(parts) {
-			diffStr := strings.Trim(parts[moveEnd+2], "()")
-			eval.Diff, _ = strconv.ParseFloat(diffStr, 64)
+
+		// Extract move
+		if moveStartIdx > 0 && moveStartIdx < len(parts) {
+			eval.Move = strings.Join(parts[moveStartIdx:], " ")
+		}
+	} else {
+		// Old format without mwp
+		// Format: "13-11 24-23                0.473 / -0.289"
+		// Find the "/" separator
+		slashIdx := -1
+		for i, part := range parts {
+			if part == "/" {
+				slashIdx = i
+				break
+			}
 		}
 
-		// Parse win percentages (next line typically)
-		// Format: 0.443  0.113  0.002  -  0.557  0.179  0.003
-		// This would need to be handled in the main parsing loop
+		if slashIdx > 0 {
+			// Everything before "/" is the move
+			eval.Move = strings.Join(parts[:slashIdx-1], " ")
+
+			// Parse equity (before "/")
+			if slashIdx > 0 {
+				eval.Equity, _ = strconv.ParseFloat(parts[slashIdx-1], 64)
+			}
+
+			// Parse diff (after "/")
+			if slashIdx+1 < len(parts) {
+				diffStr := strings.Trim(parts[slashIdx+1], "()")
+				eval.Diff, _ = strconv.ParseFloat(diffStr, 64)
+			}
+		}
 	}
 
 	return eval

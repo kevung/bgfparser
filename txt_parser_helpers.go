@@ -28,7 +28,8 @@ func parseBoardLine(line string, boardLines *[]string) bool {
 
 // parsePlayerInfo extracts player names and pip counts
 func parsePlayerInfo(line string, pos *Position) {
-	if !strings.Contains(line, "O:") || !strings.Contains(line, "X:") {
+	// Look for either "O:" or "X:" in the line
+	if !strings.Contains(line, "O:") && !strings.Contains(line, "X:") {
 		return
 	}
 
@@ -143,8 +144,12 @@ func parseCubeValue(line string, scanner *bufio.Scanner, pos *Position) bool {
 
 // handleEvaluationSection manages evaluation and cube decision section state
 func handleEvaluationSection(line string, inEvaluation, inCubeDecision *bool, evalRank *int) bool {
-	// Detect evaluation section
-	if strings.Contains(line, "Evaluation") || strings.Contains(line, "Évaluation") {
+	// Detect evaluation section - support multiple languages
+	// English: "Evaluation", French: "Évaluation", German: "Bewertung", Japanese: "評価"
+	if strings.Contains(line, "Evaluation") ||
+		strings.Contains(line, "Évaluation") ||
+		strings.Contains(line, "Bewertung") ||
+		strings.Contains(line, "評価") {
 		*inEvaluation = true
 		*inCubeDecision = false
 		*evalRank = 0

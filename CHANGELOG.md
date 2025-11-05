@@ -5,6 +5,34 @@ All notable changes to the bgfparser project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-11-05
+
+### Added
+- **Multilingual Support**: Full parsing support for BGBlitz TXT files in multiple languages
+  - English: "Evaluation", "Green", "Red"
+  - French: "Évaluation", "Vert", "Rouge"
+  - German: "Bewertung", "Grün", "Rot"
+  - Japanese: "評価", "緑", "赤"
+  
+- **Enhanced Evaluation Parsing**: Support for two evaluation formats
+  - Legacy format: `1) move equity / diff`
+  - New format: `1. mwp_value mwp / equity diff move`
+  - Automatic detection and parsing of both formats
+  
+- **Comprehensive Test Coverage**: Added multilingual test suite
+  - Tests for all supported languages (EN, FR, DE, JP)
+  - Tests for both evaluation formats
+  - Full validation of player names, scores, evaluations across languages
+
+### Fixed
+- **Player Info Parsing**: Fixed parser to handle player info on separate lines
+  - Changed from requiring both players on one line to parsing each separately
+  - Now correctly extracts player names and pip counts from board diagrams
+  
+- **Evaluation Line Detection**: Improved filtering to avoid parsing probability lines as evaluations
+  - Added proper detection of rank markers (`1.` or `1)`) vs decimal numbers
+  - Correctly distinguishes between evaluation lines and probability detail lines
+
 ## [1.1.0] - 2025-11-04
 
 ### Added
