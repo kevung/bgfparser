@@ -19,10 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New format: `1. mwp_value mwp / equity diff move`
   - Automatic detection and parsing of both formats
   
+- **Probability Analysis Extraction**: Now extracts detailed win/lose probabilities from evaluations
+  - Win probability and Win Gammon/Backgammon rates
+  - Lose Gammon/Backgammon rates
+  - Automatically parsed from probability detail lines
+  
 - **Comprehensive Test Coverage**: Added multilingual test suite
   - Tests for all supported languages (EN, FR, DE, JP)
   - Tests for both evaluation formats
   - Full validation of player names, scores, evaluations across languages
+  - Probability extraction validation
 
 ### Fixed
 - **Player Info Parsing**: Fixed parser to handle player info on separate lines

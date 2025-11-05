@@ -108,6 +108,7 @@ func ParseTXTFromReader(reader io.Reader) (*Position, error) {
 	inEvaluation := false
 	inCubeDecision := false
 	evalRank := 0
+	var lastEval *Evaluation
 
 	for scanner.Scan() {
 		lineNum++
@@ -147,6 +148,12 @@ func ParseTXTFromReader(reader io.Reader) (*Position, error) {
 		if inEvaluation && len(line) > 0 {
 			if eval := parseEvaluation(line, &evalRank); eval != nil {
 				pos.Evaluations = append(pos.Evaluations, *eval)
+				lastEval = &pos.Evaluations[len(pos.Evaluations)-1]
+			} else if lastEval != nil {
+				// Try to parse probability line for the last evaluation
+				if parseProbabilityLine(line, lastEval) {
+					lastEval = nil // Reset after parsing probabilities
+				}
 			}
 		}
 

@@ -58,6 +58,9 @@ func main() {
 			fmt.Printf("   Equity: %.3f (%.3f)\n", eval.Equity, eval.Diff)
 			if eval.Win > 0 {
 				fmt.Printf("   Win: %.3f  WinG: %.3f  WinBG: %.3f\n", eval.Win, eval.WinG, eval.WinBG)
+				if eval.LoseG > 0 || eval.LoseBG > 0 {
+					fmt.Printf("   Lose: %.3f  LoseG: %.3f  LoseBG: %.3f\n", 1.0-eval.Win, eval.LoseG, eval.LoseBG)
+				}
 			}
 		}
 	}

@@ -200,3 +200,51 @@ func TestParseTXT_EvaluationSection(t *testing.T) {
 		})
 	}
 }
+
+// TestParseTXT_ProbabilityExtraction tests that win/lose probabilities are correctly extracted
+func TestParseTXT_ProbabilityExtraction(t *testing.T) {
+	pos, err := bgfparser.ParseTXT("tmp/blunder21_EN.txt")
+	if err != nil {
+		t.Fatalf("ParseTXT failed: %v", err)
+	}
+
+	if len(pos.Evaluations) == 0 {
+		t.Fatal("No evaluations parsed")
+	}
+
+	// Check first evaluation has probabilities
+	eval := pos.Evaluations[0]
+
+	// Expected values from the file:
+	// 1) 13-11 24-23                0.473 / -0.289
+	//    0.443  0.113  0.002  -  0.557  0.179  0.003
+
+	if eval.Win == 0 {
+		t.Error("Win probability not extracted")
+	}
+
+	expectedWin := 0.443
+	if eval.Win != expectedWin {
+		t.Errorf("Win = %.3f, want %.3f", eval.Win, expectedWin)
+	}
+
+	expectedWinG := 0.113
+	if eval.WinG != expectedWinG {
+		t.Errorf("WinG = %.3f, want %.3f", eval.WinG, expectedWinG)
+	}
+
+	expectedWinBG := 0.002
+	if eval.WinBG != expectedWinBG {
+		t.Errorf("WinBG = %.3f, want %.3f", eval.WinBG, expectedWinBG)
+	}
+
+	expectedLoseG := 0.179
+	if eval.LoseG != expectedLoseG {
+		t.Errorf("LoseG = %.3f, want %.3f", eval.LoseG, expectedLoseG)
+	}
+
+	expectedLoseBG := 0.003
+	if eval.LoseBG != expectedLoseBG {
+		t.Errorf("LoseBG = %.3f, want %.3f", eval.LoseBG, expectedLoseBG)
+	}
+}

@@ -198,6 +198,56 @@ func parseEvaluation(line string, rank *int) *Evaluation {
 	return eval
 }
 
+// parseProbabilityLine parses the probability detail line that follows an evaluation
+// Format: "   0.443  0.113  0.002  -  0.557  0.179  0.003"
+// Which represents: Win WinG WinBG - (Lose implied) LoseG LoseBG
+func parseProbabilityLine(line string, eval *Evaluation) bool {
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return false
+	}
+
+	// Check if this looks like a probability line
+	// Should start with a decimal number and contain a dash separator
+	if !regexp.MustCompile(`^\d+\.\d+\s`).MatchString(line) {
+		return false
+	}
+
+	if !strings.Contains(line, "-") {
+		return false
+	}
+
+	parts := strings.Fields(line)
+	if len(parts) < 7 {
+		return false
+	}
+
+	// Find the dash separator
+	dashIdx := -1
+	for i, part := range parts {
+		if part == "-" {
+			dashIdx = i
+			break
+		}
+	}
+
+	if dashIdx < 3 || dashIdx+3 >= len(parts) {
+		return false
+	}
+
+	// Parse win probabilities (before dash)
+	eval.Win, _ = strconv.ParseFloat(parts[0], 64)
+	eval.WinG, _ = strconv.ParseFloat(parts[1], 64)
+	eval.WinBG, _ = strconv.ParseFloat(parts[2], 64)
+
+	// Parse lose probabilities (after dash)
+	// Note: parts[dashIdx+1] is the lose probability (1 - win), we skip it
+	eval.LoseG, _ = strconv.ParseFloat(parts[dashIdx+2], 64)
+	eval.LoseBG, _ = strconv.ParseFloat(parts[dashIdx+3], 64)
+
+	return true
+}
+
 // parseCubeDecision parses a cube decision line
 func parseCubeDecision(line string) *CubeDecision {
 	decision := &CubeDecision{}
