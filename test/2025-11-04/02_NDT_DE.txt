@@ -1,0 +1,31 @@
+ +13-14-15-16-17-18------19-20-21-22-23-24-+   O: Grün  137
+ | X     O        X |   | O  X  O  O       |
+ | X     O        X |   | O     O          |
+ | X                |   | O     O          |
+ |                  |   | O                |
+ |                  |   |                  |
+v|                  |BAR|                  |
+ |                  |   |                  |
+ |                  |   |                  |
+ |                  |   |                  |
+ | O        O  X    |   | X     X  X       |
+ | O     X  O  X    |   | X  O  X  X       |
+ +12-11-10--9--8--7-------6--5--4--3--2--1-+   X: Rot  147
+
+ Position-ID: dB7GGAJsZuJgAg    Match-ID: cAkgAVAAAAAE
+ XGID=---BBaB-BbA-bC-b--BdAca---:0:0:1:00:0:5:0:9:10
+
+ Grün - 5 Rot - 0 in a 9 point match.
+ Rot to move.
+
+              Siege G+BG  BG
+ Grün         45.9  11.7  0.2 
+ Rot          54.1  17.5  0.2 
+ Erwartungswert Rot (ohne Doppler): 0.139  Std.Abw.: 0.132
+ Auszahlungserw. (mit Doppler)   :  0.226
+
+ Würfelaktion:         :  Kein Doppel / Annehmen  EMG
+ Kein Doppel           :  0.226   ( 0.000)      0.287   ( 0.000)
+ Doppeln / Annehmen    :  0.220   (-0.006)      0.164   (-0.123)
+ Doppeln / Ablehnen    :  0.261   ( 0.034)      1.000   ( 0.713)
+
