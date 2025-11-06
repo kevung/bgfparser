@@ -1,288 +1,88 @@
-# bgfparser Web Architecture
+# bgfparser Architecture
 
-## Overview
+## System Overview
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Client Applications                      │
-├─────────────┬─────────────┬─────────────┬──────────────────┤
-│   Web UI    │  Mobile App │  REST API   │  Command Line    │
-│   Browser   │             │   Client    │     Tools        │
-└─────┬───────┴─────┬───────┴──────┬──────┴────────┬─────────┘
-      │             │              │               │
-      │ HTTP POST   │ HTTP POST    │ HTTP GET/POST │ File Path
-      │ multipart   │ multipart    │ JSON          │
-      │             │              │               │
-┌─────▼─────────────▼──────────────▼───────────────▼─────────┐
-│                     Web Server Layer                        │
-│                  (examples/web_server)                      │
-├─────────────────────────────────────────────────────────────┤
-│  Handlers:                                                  │
-│  • uploadBGFHandler()    - Upload BGF summary              │
-│  • fullBGFHandler()      - Full BGF JSON                   │
-│  • uploadTXTHandler()    - Upload TXT summary              │
-│  • fullTXTHandler()      - Full TXT JSON                   │
-│  • healthHandler()       - Health check                    │
-└─────────┬─────────────────────┬─────────────────────────────┘
-          │                     │
-          │ io.Reader           │ Filename string
-          │ (HTTP upload)       │ (File path)
-          │                     │
-┌────────────────────────────────────────────────────────┐
-│                   BGFParser Package                    │
-│                   (github.com/kevung/bgfparser)              │
-└────────────────────────────────────────────────────────┘
-│  Web-Ready API:                                             │
-│  • ParseBGFFromReader(io.Reader) -> *Match                  │
-│  • ParseTXTFromReader(io.Reader) -> *Position              │
-│                                                              │
-│  File-Based API:                                            │
-│  • ParseBGF(filename) -> *Match                             │
-│  • ParseTXT(filename) -> *Position                          │
-│                                                              │
-│  JSON Export:                                               │
-│  • (*Match).ToJSON() -> []byte                              │
-│  • (*Position).ToJSON() -> []byte                           │
-└──────────────┬────────────────────┬──────────────────────────┘
-               │                    │
-               │                    │
-┌──────────────▼────────┐  ┌────────▼──────────────────────────┐
-│  Input Parsers        │  │  Data Structures                  │
-├───────────────────────┤  ├───────────────────────────────────┤
-│  • bgf_parser.go      │  │  • types.go                       │
-│  • txt_parser.go      │  │    - Position (JSON tags)         │
-│  • web.go             │  │    - Match (JSON tags)            │
-│  • txt_parser_helpers │  │    - Evaluation (JSON tags)       │
-│                       │  │    - CubeDecision (JSON tags)     │
-└───────────────────────┘  └───────────────────────────────────┘
-               │
-               │
-┌──────────────▼────────────────────────────────────────────┐
-│              Internal Components                          │
-├───────────────────────────────────────────────────────────┤
-│  • internal/smile - SMILE binary JSON decoder             │
-│  • gzip decompression                                     │
-│  • JSON parsing                                           │
-└───────────────────────────────────────────────────────────┘
+Client → Web Server → bgfparser Package → Parsers → Data Structures
 ```
 
 ## Data Flow
 
-### File Upload Flow
-
+### HTTP Upload
 ```
-User Browser
-    │
-    │ 1. Upload BGF/TXT file via HTML form
-    ▼
-HTTP Server (port 8080)
-    │
-    │ 2. r.FormFile("bgffile")
-    ▼
-ParseBGFFromReader(file)
-    │
-    │ 3. Read header
-    │ 4. Decompress (if needed)
-    │ 5. Decode SMILE (if needed)
-    │ 6. Parse JSON
-    ▼
-Match/Position struct
-    │
-    │ 7. ToJSON()
-    ▼
-HTTP Response (JSON)
-    │
-    │ 8. Send to browser
-    ▼
-User sees JSON data
+HTTP Upload → ParseBGFFromReader(io.Reader) → *Match → ToJSON() → JSON Response
+HTTP Upload → ParseTXTFromReader(io.Reader) → *Position → ToJSON() → JSON Response
 ```
 
-### In-Memory Processing Flow
-
+### File-Based
 ```
-Application
-    │
-    │ 1. []byte data from any source
-    ▼
-bytes.NewReader(data)
-    │
-    │ 2. Create io.Reader
-    ▼
-ParseBGFFromReader(reader)
-    │
-    │ 3. Parse directly from memory
-    ▼
-Match/Position struct
-    │
-    │ 4. Use in application
-    ▼
-Database, API, etc.
+File Path → ParseBGF(filename) → *Match → Data Structure
+File Path → ParseTXT(filename) → *Position → Data Structure
 ```
 
-## Input Sources
-
-The parser accepts data from multiple sources via `io.Reader`:
+## Package Structure
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                    Input Sources                         │
-├──────────────┬──────────────┬──────────────┬────────────┤
-│ File Upload  │ HTTP Stream  │ Memory       │ File       │
-├──────────────┼──────────────┼──────────────┼────────────┤
-│ multipart.   │ net.Conn     │ bytes.       │ os.File    │
-│ File         │              │ Reader       │            │
-└──────┬───────┴──────┬───────┴──────┬───────┴─────┬──────┘
-       │              │              │             │
-       └──────────────┴──────────────┴─────────────┘
-                      │
-                      ▼
-              io.Reader interface
-                      │
-                      ▼
-        ParseBGFFromReader(reader)
-        ParseTXTFromReader(reader)
+bgfparser/
+├── types.go              # Data structures (Match, Position, Evaluation, etc.)
+├── bgf_parser.go         # BGF binary format parser
+├── txt_parser.go         # TXT position parser
+├── txt_parser_helpers.go # TXT parsing utilities
+├── web.go                # JSON export methods
+├── internal/smile/       # SMILE decoder (BGF compression)
+└── examples/             # Usage examples
+    ├── parse_bgf/        # BGF file parsing
+    ├── parse_txt/        # TXT file parsing
+    ├── batch_parse/      # Batch processing
+    └── web_server/       # HTTP upload server
 ```
 
-## Output Formats
+## Core Components
 
-The parser provides data in multiple formats:
+### Parsers
+- **BGF Parser**: Binary match file format with SMILE compression
+- **TXT Parser**: Text position files with multilingual support (EN/FR/DE/JP)
 
-```
-┌─────────────────────────────────────────────────────────┐
-│              Parsed Data (Go structs)                   │
-└──────────────────┬──────────────────┬───────────────────┘
-                   │                  │
-         ┌─────────▼─────────┐  ┌─────▼──────────┐
-         │   Direct Access   │  │  JSON Export   │
-         ├───────────────────┤  ├────────────────┤
-         │ pos.PlayerX       │  │ pos.ToJSON()   │
-         │ pos.Evaluations   │  │ match.ToJSON() │
-         │ match.Data        │  │                │
-         └─────────┬─────────┘  └────────┬───────┘
-                   │                     │
-        ┌──────────▼──────────┐ ┌────────▼────────┐
-        │  Go Application     │ │  Web Response   │
-        │  • Logic            │ │  • HTTP API     │
-        │  • Processing       │ │  • Database     │
-        │  • Analysis         │ │  • Storage      │
-        └─────────────────────┘ └─────────────────┘
-```
+### Data Structures
+- **Match**: BGF file data (format, version, compressed data)
+- **Position**: TXT position data (board, score, evaluations, cube decisions)
+- **Evaluation**: Move analysis (rank, equity, probabilities)
+- **CubeDecision**: Cube action analysis (action, MWC, equity)
 
-## API Endpoints Example
+### Web Integration
+- **Reader-based parsing**: No temp files required
+- **JSON serialization**: All structures support `ToJSON()`
+- **HTTP handlers**: Ready-to-use upload examples
 
-```
-                    HTTP Endpoints
-    ┌──────────────────┴──────────────────┐
-    │                                     │
-GET /                                POST /upload/bgf
-    │                                     │
-    │ HTML Interface                      │ multipart/form-data
-    │                                     │
-    ▼                                     ▼
-┌──────────────────┐              ┌──────────────────┐
-│  Web UI Form     │              │ ParseBGFFromReader│
-│  - BGF upload    │              │      ↓           │
-│  - TXT upload    │              │  Match struct    │
-│  - Results view  │              │      ↓           │
-└──────────────────┘              │ Summary JSON     │
-                                  └──────────────────┘
-                                           │
-                                           ▼
-                                    HTTP Response
-                                    {
-                                      "format": "BGF",
-                                      "version": "1.0",
-                                      "match_info": {...}
-                                    }
-```
+## Design Principles
 
-## Database Integration Pattern
+1. **Flexible Input**: Support files, HTTP uploads, memory buffers
+2. **Zero Dependencies**: Standard library only (except internal SMILE decoder)
+3. **JSON-First**: All structures JSON-serializable for web APIs
+4. **Multilingual**: Language-agnostic parsing for international support
 
-```
-HTTP Upload
-    │
-    ▼
-ParseBGFFromReader()
-    │
-    ▼
-Match struct
-    │
-    ├─→ ToJSON() ──→ PostgreSQL JSONB
-    │                 INSERT INTO matches
-    │                 (match_data) VALUES ($1)
-    │
-    ├─→ Extract fields ──→ SQL Table
-    │                      INSERT INTO matches
-    │                      (player1, player2, ...)
-    │
-    └─→ Direct struct ──→ MongoDB
-                          collection.InsertOne(match)
-```
+## Extension Points
 
-## Use Case Scenarios
+### Adding New Parsers
+1. Create `format_parser.go`
+2. Implement `ParseFormat(filename string) (*Type, error)`
+3. Add `ParseFormatFromReader(io.Reader)` for web support
+4. Define types in `types.go`
 
-### 1. Web Analysis Service
-```
-User uploads BGF → Parse → Analyze → Return statistics
-```
-
-### 2. Match Database
-```
-Upload BGF → Parse → Extract → Store in DB → Query later
-```
-
-### 3. Real-time API
-```
-POST /analyze → Parse from request → Compute → JSON response
-```
-
-### 4. Batch Processing
-```
-Directory of files → Parse each → Aggregate stats → Report
-```
-
-## Security Layers
-
-```
-┌──────────────────────────────────────────────────┐
-│              Security Considerations             │
-├──────────────────────────────────────────────────┤
-│  1. File size limits (10 MB default)            │
-│  2. File type validation (.bgf, .txt)           │
-│  3. Rate limiting (requests/minute)              │
-│  4. Input sanitization                           │
-│  5. Error handling (no data leakage)             │
-│  6. Timeout limits                               │
-└──────────────────────────────────────────────────┘
-```
+### Adding New Fields
+1. Update types in `types.go`
+2. Add JSON tags for serialization
+3. Implement parsing in appropriate parser
+4. Update examples
 
 ## Performance Characteristics
 
-```
-File Upload → Parse → Response
-    ↓          ↓         ↓
-  <1ms      <10ms     <5ms   (typical match file)
-  
-Stream:  No buffering, processes as received
-Memory:  Minimal allocation, efficient parsing
-CPU:     Single-threaded, fast decompression
-```
+- **BGF Parsing**: O(n) where n = compressed data size
+- **TXT Parsing**: O(n) where n = file lines
+- **Memory**: Loads entire file into memory
+- **Concurrency**: Thread-safe for read operations
 
-## Key Benefits
+## Dependencies
 
-1. **No Temporary Files** - Direct parsing from upload
-2. **Flexible Input** - Works with any io.Reader
-3. **JSON Ready** - All structs serializable
-4. **Type Safe** - Go structs with full type info
-5. **Database Ready** - Easy PostgreSQL/MongoDB integration
-6. **Web Native** - Designed for HTTP handlers
-7. **Backward Compatible** - File-based API unchanged
-
-## Next Steps
-
-- Add authentication middleware
-- Implement rate limiting
-- Add caching layer
-- Create Swagger docs
-- Add streaming for large files
-- Deploy with Docker
+- Go standard library
+- `internal/smile`: SMILE compression decoder (bundled, Apache 2.0 license)
