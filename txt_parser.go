@@ -83,9 +83,13 @@ func parseXGID(pos *Position, xgid string) {
 }
 
 // parseXGIDBoard decodes the board position from XGID format
-// XGID board encoding uses a custom base64-like encoding
-// Points are encoded from 24 to 1 (reverse order from player X's perspective)
-// Each character represents checkers on a point:
+// XGID board encoding format (26 characters):
+//
+//	Character 0: X's checkers on bar
+//	Characters 1-24: Points 1, 2, 3, ..., 23, 24 (from X's perspective)
+//	Character 25: X's checkers borne off
+//
+// Each character represents:
 //
 //	'-' = empty point
 //	'A'-'O' (uppercase) = 1-15 X checkers
@@ -98,19 +102,23 @@ func parseXGIDBoard(pos *Position, boardStr string) {
 	pos.OnBar["X"] = 0
 	pos.OnBar["O"] = 0
 
-	// XGID encodes points from 24 down to 1
-	// The string may have 26 positions (including bar and off)
-	// Standard format: 24 board points (points 24-1)
+	if len(boardStr) < 26 {
+		return // Invalid XGID
+	}
 
-	point := 24
+	// Character 0: X's bar
+	if boardStr[0] >= 'A' && boardStr[0] <= 'O' {
+		pos.OnBar["X"] = int(boardStr[0] - 'A' + 1)
+	} else if boardStr[0] >= 'a' && boardStr[0] <= 'o' {
+		pos.OnBar["O"] = int(boardStr[0] - 'a' + 1)
+	}
 
-	for i, ch := range boardStr {
-		if point < 1 {
-			break // We've filled all 24 points
-		}
+	// Characters 1-24: Points 1, 2, 3, ..., 24
+	for i := 1; i <= 24; i++ {
+		ch := boardStr[i]
+		point := i // Point 1, 2, 3, ..., 24
 
 		if ch == '-' {
-			// Empty point
 			pos.Board[point] = 0
 		} else if ch >= 'A' && ch <= 'O' {
 			// Uppercase = player X checkers (1-15)
@@ -121,17 +129,9 @@ func parseXGIDBoard(pos *Position, boardStr string) {
 			count := int(ch - 'a' + 1)
 			pos.Board[point] = -count
 		}
-		// else: unknown character, treat as empty
-
-		point--
-
-		// Handle bar position (position 25 in some encodings)
-		// Some XGIDs include bar at the beginning
-		if i == 0 && point == 23 {
-			// First character might be bar for X
-			continue
-		}
 	}
+
+	// Character 25: X's borne off (we don't track this in board array)
 }
 
 // parseEvaluation parses a single evaluation line
