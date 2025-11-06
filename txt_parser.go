@@ -31,21 +31,16 @@ func ParseTXT(filename string) (*Position, error) {
 
 // parseBoard extracts checker positions from board lines
 func parseBoard(pos *Position, lines []string) {
-	// Initialize board
-	for i := range pos.Board {
-		pos.Board[i] = 0
-	}
+	// Note: Board is already parsed from XGID if available
+	// This function could parse the ASCII art board representation
+	// but for now we rely on XGID parsing which is more accurate
 
-	// Simple board parsing - count X and O on each point
-	// This is a simplified version; full implementation would parse the exact positions
+	// Only try to parse checkers on bar from ASCII art if not already set
 	for _, line := range lines {
-		// Extract point numbers and checkers
-		// This is complex due to the ASCII art format
-		// For now, we'll extract basic information
 		if strings.Contains(line, "BAR") && (strings.Contains(line, "X") || strings.Contains(line, "O")) {
-			// Check for checkers on bar
+			// Check for checkers on bar (if not already parsed from XGID)
 			parts := strings.Split(line, "BAR")
-			if len(parts) > 0 {
+			if len(parts) > 0 && pos.OnBar["X"] == 0 && pos.OnBar["O"] == 0 {
 				if strings.Count(parts[0], "X") > strings.Count(parts[0], "O") {
 					pos.OnBar["X"]++
 				} else if strings.Count(parts[0], "O") > strings.Count(parts[0], "X") {
@@ -61,6 +56,9 @@ func parseXGID(pos *Position, xgid string) {
 	// XGID format: board:cubeValue:cubeOwner:onRoll:dice:crawford:score1:score2:matchLength:turn
 	parts := strings.Split(xgid, ":")
 	if len(parts) >= 5 {
+		// Parse board position from first part
+		parseXGIDBoard(pos, parts[0])
+
 		// Parse cube value
 		if val, err := strconv.Atoi(parts[1]); err == nil {
 			pos.CubeValue = 1 << val // Cube value is 2^n
@@ -80,6 +78,58 @@ func parseXGID(pos *Position, xgid string) {
 			pos.OnRoll = "X"
 		case "-1":
 			pos.OnRoll = "O"
+		}
+	}
+}
+
+// parseXGIDBoard decodes the board position from XGID format
+// XGID board encoding uses a custom base64-like encoding
+// Points are encoded from 24 to 1 (reverse order from player X's perspective)
+// Each character represents checkers on a point:
+//
+//	'-' = empty point
+//	'A'-'O' (uppercase) = 1-15 X checkers
+//	'a'-'o' (lowercase) = 1-15 O checkers
+func parseXGIDBoard(pos *Position, boardStr string) {
+	// Initialize board
+	for i := range pos.Board {
+		pos.Board[i] = 0
+	}
+	pos.OnBar["X"] = 0
+	pos.OnBar["O"] = 0
+
+	// XGID encodes points from 24 down to 1
+	// The string may have 26 positions (including bar and off)
+	// Standard format: 24 board points (points 24-1)
+
+	point := 24
+
+	for i, ch := range boardStr {
+		if point < 1 {
+			break // We've filled all 24 points
+		}
+
+		if ch == '-' {
+			// Empty point
+			pos.Board[point] = 0
+		} else if ch >= 'A' && ch <= 'O' {
+			// Uppercase = player X checkers (1-15)
+			count := int(ch - 'A' + 1)
+			pos.Board[point] = count
+		} else if ch >= 'a' && ch <= 'o' {
+			// Lowercase = player O checkers (1-15, stored as negative)
+			count := int(ch - 'a' + 1)
+			pos.Board[point] = -count
+		}
+		// else: unknown character, treat as empty
+
+		point--
+
+		// Handle bar position (position 25 in some encodings)
+		// Some XGIDs include bar at the beginning
+		if i == 0 && point == 23 {
+			// First character might be bar for X
+			continue
 		}
 	}
 }
@@ -250,44 +300,45 @@ func parseProbabilityLine(line string, eval *Evaluation) bool {
 
 // parseEquityInfo parses equity information lines in cube decision analysis
 // Formats:
-//   "Equity Red (cubeless): 0.139  Std.Dev.: 0.132"
-//   "Equity (cubeful)    :  0.226"
+//
+//	"Equity Red (cubeless): 0.139  Std.Dev.: 0.132"
+//	"Equity (cubeful)    :  0.226"
 func parseEquityInfo(line string, pos *Position) {
 	line = strings.TrimSpace(line)
-	
+
 	// Parse cubeless equity and standard deviation
 	// English: "Equity ... (cubeless): X.XXX  Std.Dev.: X.XXX"
 	// German: "Erwartungswert ... (ohne Doppler): X.XXX  Std.Abw.: X.XXX"
 	// Japanese: "期待値 (エクイティ) ... (キューブなし): X.XXX  標準偏差: X.XXX"
 	if strings.Contains(strings.ToLower(line), "cubeless") ||
-	   strings.Contains(line, "ohne Doppler") ||
-	   strings.Contains(line, "キューブなし") {
+		strings.Contains(line, "ohne Doppler") ||
+		strings.Contains(line, "キューブなし") {
 		re := regexp.MustCompile(`([+-]?\d+\.\d+)`)
 		matches := re.FindAllString(line, -1)
 		if len(matches) >= 1 {
 			pos.CubelessEquity, _ = strconv.ParseFloat(matches[0], 64)
 		}
-		
+
 		// Parse standard deviation
 		// English: "Std.Dev.:", German: "Std.Abw.:", Japanese: "標準偏差:"
-		if strings.Contains(line, "Std.Dev.") || 
-		   strings.Contains(line, "Std.Abw.") ||
-		   strings.Contains(line, "標準偏差") {
+		if strings.Contains(line, "Std.Dev.") ||
+			strings.Contains(line, "Std.Abw.") ||
+			strings.Contains(line, "標準偏差") {
 			if len(matches) >= 2 {
 				pos.EquityStdDev, _ = strconv.ParseFloat(matches[1], 64)
 			}
 		}
 	}
-	
+
 	// Parse cubeful equity
 	// English: "Equity (cubeful) : X.XXX"
 	// German: "Auszahlungserw. (mit Doppler) : X.XXX"
 	// French: "Équité (avec videau) : X.XXX"
 	// Japanese: "エクイティ (キューブ有り) : X.XXX"
 	if strings.Contains(strings.ToLower(line), "cubeful") ||
-	   strings.Contains(line, "mit Doppler") ||
-	   strings.Contains(line, "avec videau") ||
-	   strings.Contains(line, "キューブ有り") {
+		strings.Contains(line, "mit Doppler") ||
+		strings.Contains(line, "avec videau") ||
+		strings.Contains(line, "キューブ有り") {
 		re := regexp.MustCompile(`([+-]?\d+\.\d+)`)
 		matches := re.FindAllString(line, -1)
 		if len(matches) >= 1 {
@@ -299,18 +350,18 @@ func parseEquityInfo(line string, pos *Position) {
 // parseCubeDecision parses a cube decision line
 func parseCubeDecision(line string) *CubeDecision {
 	line = strings.TrimSpace(line)
-	
+
 	// Must contain a colon and decimal numbers to be a cube decision line
 	if !strings.Contains(line, ":") {
 		return nil
 	}
-	
+
 	// Must have at least one decimal number
 	re := regexp.MustCompile(`\d+\.\d+`)
 	if !re.MatchString(line) {
 		return nil
 	}
-	
+
 	decision := &CubeDecision{}
 
 	if strings.Contains(line, "*") {
@@ -326,17 +377,17 @@ func parseCubeDecision(line string) *CubeDecision {
 
 	// Format: "Action : MWC (MWC_diff) EMG (EMG_diff)"
 	// Example: " No Double : 0.226 ( 0.000) 0.287 ( 0.000)"
-	
+
 	// Parse differences in parentheses first (MWC diff, EMG diff)
 	reDiff := regexp.MustCompile(`\(([+-]?\s*\d+\.\d+)\)`)
 	diffMatches := reDiff.FindAllStringSubmatch(line, -1)
-	
+
 	// Remove parenthesized values to find non-parenthesized decimals
 	lineWithoutParens := reDiff.ReplaceAllString(line, "")
-	
+
 	// Now find decimal numbers that are NOT in parentheses
 	matches := re.FindAllString(lineWithoutParens, -1)
-	
+
 	// matches[0] = MWC, matches[1] = EMG
 	if len(matches) >= 1 {
 		decision.MWC, _ = strconv.ParseFloat(matches[0], 64)
@@ -344,7 +395,7 @@ func parseCubeDecision(line string) *CubeDecision {
 	if len(matches) >= 2 {
 		decision.EMG, _ = strconv.ParseFloat(matches[1], 64)
 	}
-	
+
 	if len(diffMatches) >= 1 {
 		// Remove any spaces in the captured group
 		diffStr := strings.TrimSpace(diffMatches[0][1])

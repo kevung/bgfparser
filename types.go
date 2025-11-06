@@ -44,7 +44,7 @@ type Position struct {
 	// Evaluation data
 	Evaluations   []Evaluation   `json:"evaluations,omitempty"`
 	CubeDecisions []CubeDecision `json:"cube_decisions,omitempty"`
-	
+
 	// Cube analysis summary (when present)
 	CubelessEquity float64 `json:"cubeless_equity,omitempty"`
 	CubefulEquity  float64 `json:"cubeful_equity,omitempty"`

@@ -151,7 +151,7 @@ func main() {
 		fmt.Println("┌─────────────────────────────────────")
 		fmt.Println("│ CUBE DECISION ANALYSIS")
 		fmt.Println("├─────────────────────────────────────")
-		
+
 		// Show equity information if available
 		if position.CubelessEquity != 0 || position.CubefulEquity != 0 {
 			if position.CubelessEquity != 0 {
@@ -166,7 +166,7 @@ func main() {
 			}
 			fmt.Println("├─────────────────────────────────────")
 		}
-		
+
 		for _, cd := range position.CubeDecisions {
 			best := ""
 			if cd.IsBest {
