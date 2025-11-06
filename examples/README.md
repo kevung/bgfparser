@@ -19,9 +19,9 @@ go run examples/web_server/main.go  # http://localhost:8080
 
 ## Tools
 
-### parse_txt - Parse TXT Position Files
+### parse_txt - Parse TXT Position Files (Basic)
 
-Parse and display a BGBlitz TXT position file.
+Parse and display a BGBlitz TXT position file with summary information.
 
 ```bash
 ./bin/parse_txt <filename.txt>
@@ -29,6 +29,29 @@ Parse and display a BGBlitz TXT position file.
 ```
 
 **Shows:** Players, scores, dice, cube, evaluations, cube decisions, position IDs
+
+### parse_txt_detailed - Parse TXT Position Files (Complete)
+
+Parse and display ALL extracted information in a comprehensive format.
+
+```bash
+go run examples/parse_txt_detailed/main.go <filename.txt>
+go run examples/parse_txt_detailed/main.go tmp/blunder21_EN.txt
+```
+
+**Shows:** 
+- Complete player information
+- Match details
+- All position identifiers
+- Current state (dice, cube, on roll)
+- Pip counts
+- Board array (26 points)
+- **Detailed evaluations with probabilities:**
+  - Move notation
+  - Equity and differences
+  - Win/WinG/WinBG probabilities
+  - Lose/LoseG/LoseBG probabilities
+- Cube decision analysis
 
 ### parse_bgf - Parse BGF Match Files
 

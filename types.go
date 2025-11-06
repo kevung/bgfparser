@@ -42,8 +42,13 @@ type Position struct {
 	PipCount  map[string]int `json:"pip_count"`
 
 	// Evaluation data
-	Evaluations  []Evaluation  `json:"evaluations,omitempty"`
-	CubeDecision *CubeDecision `json:"cube_decision,omitempty"`
+	Evaluations   []Evaluation   `json:"evaluations,omitempty"`
+	CubeDecisions []CubeDecision `json:"cube_decisions,omitempty"`
+	
+	// Cube analysis summary (when present)
+	CubelessEquity float64 `json:"cubeless_equity,omitempty"`
+	CubefulEquity  float64 `json:"cubeful_equity,omitempty"`
+	EquityStdDev   float64 `json:"equity_std_dev,omitempty"`
 }
 
 // Evaluation represents a move evaluation

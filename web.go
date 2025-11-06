@@ -157,10 +157,14 @@ func ParseTXTFromReader(reader io.Reader) (*Position, error) {
 			}
 		}
 
+		// Try to parse equity information (appears before cube decision section)
+		parseEquityInfo(line, pos)
+
 		// Parse cube decisions
 		if inCubeDecision {
+			// Parse cube decision line
 			if decision := parseCubeDecision(line); decision != nil {
-				pos.CubeDecision = decision
+				pos.CubeDecisions = append(pos.CubeDecisions, *decision)
 			}
 		}
 	}

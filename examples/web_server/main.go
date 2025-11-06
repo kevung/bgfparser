@@ -190,7 +190,7 @@ func uploadTXTHandler(w http.ResponseWriter, r *http.Request) {
 		Dice:         pos.Dice,
 		CubeValue:    pos.CubeValue,
 		NumEvals:     len(pos.Evaluations),
-		HasCubeDecis: pos.CubeDecision != nil,
+		HasCubeDecis: len(pos.CubeDecisions) > 0,
 	}
 
 	// Add best move info

@@ -70,8 +70,11 @@ func parseTXTFile(path string) {
 		}
 	}
 
-	if position.CubeDecision != nil {
-		fmt.Printf("Cube Decision: %s\n", position.CubeDecision.Action)
+	if len(position.CubeDecisions) > 0 {
+		fmt.Printf("Cube Decisions: %d\n", len(position.CubeDecisions))
+		for _, cd := range position.CubeDecisions {
+			fmt.Printf("  - %s\n", cd.Action)
+		}
 	}
 }
 

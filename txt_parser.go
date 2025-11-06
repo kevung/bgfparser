@@ -248,8 +248,69 @@ func parseProbabilityLine(line string, eval *Evaluation) bool {
 	return true
 }
 
+// parseEquityInfo parses equity information lines in cube decision analysis
+// Formats:
+//   "Equity Red (cubeless): 0.139  Std.Dev.: 0.132"
+//   "Equity (cubeful)    :  0.226"
+func parseEquityInfo(line string, pos *Position) {
+	line = strings.TrimSpace(line)
+	
+	// Parse cubeless equity and standard deviation
+	// English: "Equity ... (cubeless): X.XXX  Std.Dev.: X.XXX"
+	// German: "Erwartungswert ... (ohne Doppler): X.XXX  Std.Abw.: X.XXX"
+	// Japanese: "期待値 (エクイティ) ... (キューブなし): X.XXX  標準偏差: X.XXX"
+	if strings.Contains(strings.ToLower(line), "cubeless") ||
+	   strings.Contains(line, "ohne Doppler") ||
+	   strings.Contains(line, "キューブなし") {
+		re := regexp.MustCompile(`([+-]?\d+\.\d+)`)
+		matches := re.FindAllString(line, -1)
+		if len(matches) >= 1 {
+			pos.CubelessEquity, _ = strconv.ParseFloat(matches[0], 64)
+		}
+		
+		// Parse standard deviation
+		// English: "Std.Dev.:", German: "Std.Abw.:", Japanese: "標準偏差:"
+		if strings.Contains(line, "Std.Dev.") || 
+		   strings.Contains(line, "Std.Abw.") ||
+		   strings.Contains(line, "標準偏差") {
+			if len(matches) >= 2 {
+				pos.EquityStdDev, _ = strconv.ParseFloat(matches[1], 64)
+			}
+		}
+	}
+	
+	// Parse cubeful equity
+	// English: "Equity (cubeful) : X.XXX"
+	// German: "Auszahlungserw. (mit Doppler) : X.XXX"
+	// French: "Équité (avec videau) : X.XXX"
+	// Japanese: "エクイティ (キューブ有り) : X.XXX"
+	if strings.Contains(strings.ToLower(line), "cubeful") ||
+	   strings.Contains(line, "mit Doppler") ||
+	   strings.Contains(line, "avec videau") ||
+	   strings.Contains(line, "キューブ有り") {
+		re := regexp.MustCompile(`([+-]?\d+\.\d+)`)
+		matches := re.FindAllString(line, -1)
+		if len(matches) >= 1 {
+			pos.CubefulEquity, _ = strconv.ParseFloat(matches[0], 64)
+		}
+	}
+}
+
 // parseCubeDecision parses a cube decision line
 func parseCubeDecision(line string) *CubeDecision {
+	line = strings.TrimSpace(line)
+	
+	// Must contain a colon and decimal numbers to be a cube decision line
+	if !strings.Contains(line, ":") {
+		return nil
+	}
+	
+	// Must have at least one decimal number
+	re := regexp.MustCompile(`\d+\.\d+`)
+	if !re.MatchString(line) {
+		return nil
+	}
+	
 	decision := &CubeDecision{}
 
 	if strings.Contains(line, "*") {
@@ -257,32 +318,41 @@ func parseCubeDecision(line string) *CubeDecision {
 		line = strings.ReplaceAll(line, "*", "")
 	}
 
-	// Extract action
-	if strings.Contains(line, "Double") && strings.Contains(line, "Take") {
-		decision.Action = "Double/Take"
-	} else if strings.Contains(line, "Double") && strings.Contains(line, "Pass") {
-		decision.Action = "Double/Pass"
-	} else if strings.Contains(line, "No Double") {
-		decision.Action = "No Double"
+	// Extract action name (everything before the first colon)
+	parts := strings.SplitN(line, ":", 2)
+	if len(parts) >= 1 {
+		decision.Action = strings.TrimSpace(parts[0])
 	}
 
-	// Parse MWC and EMG values
-	re := regexp.MustCompile(`(\d+\.\d+)`)
-	matches := re.FindAllString(line, -1)
-
-	if len(matches) >= 2 {
+	// Format: "Action : MWC (MWC_diff) EMG (EMG_diff)"
+	// Example: " No Double : 0.226 ( 0.000) 0.287 ( 0.000)"
+	
+	// Parse differences in parentheses first (MWC diff, EMG diff)
+	reDiff := regexp.MustCompile(`\(([+-]?\s*\d+\.\d+)\)`)
+	diffMatches := reDiff.FindAllStringSubmatch(line, -1)
+	
+	// Remove parenthesized values to find non-parenthesized decimals
+	lineWithoutParens := reDiff.ReplaceAllString(line, "")
+	
+	// Now find decimal numbers that are NOT in parentheses
+	matches := re.FindAllString(lineWithoutParens, -1)
+	
+	// matches[0] = MWC, matches[1] = EMG
+	if len(matches) >= 1 {
 		decision.MWC, _ = strconv.ParseFloat(matches[0], 64)
+	}
+	if len(matches) >= 2 {
 		decision.EMG, _ = strconv.ParseFloat(matches[1], 64)
 	}
-
-	// Parse differences in parentheses
-	reDiff := regexp.MustCompile(`\(([+-]?\d+\.\d+)\)`)
-	diffMatches := reDiff.FindAllStringSubmatch(line, -1)
+	
 	if len(diffMatches) >= 1 {
-		decision.MWCDiff, _ = strconv.ParseFloat(diffMatches[0][1], 64)
+		// Remove any spaces in the captured group
+		diffStr := strings.TrimSpace(diffMatches[0][1])
+		decision.MWCDiff, _ = strconv.ParseFloat(diffStr, 64)
 	}
 	if len(diffMatches) >= 2 {
-		decision.EMGDiff, _ = strconv.ParseFloat(diffMatches[1][1], 64)
+		diffStr := strings.TrimSpace(diffMatches[1][1])
+		decision.EMGDiff, _ = strconv.ParseFloat(diffStr, 64)
 	}
 
 	return decision

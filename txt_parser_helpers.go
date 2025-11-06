@@ -161,8 +161,13 @@ func handleEvaluationSection(line string, inEvaluation, inCubeDecision *bool, ev
 		return true
 	}
 
-	// Detect cube decision section
-	if strings.Contains(line, "MWC") && strings.Contains(line, "EMG") {
+	// Detect cube decision section - look for multilingual "Cube Action:" headers or MWC/EMG column headers
+	// English: "Cube Action:", German: "Würfelaktion:", French: "Videau:", Japanese: "キューブアクション:"
+	if strings.Contains(line, "Cube Action") || 
+	   strings.Contains(line, "Würfelaktion") ||
+	   strings.Contains(line, "Videau") ||
+	   strings.Contains(line, "キューブアクション") ||
+	   (strings.Contains(line, "MWC") && strings.Contains(line, "EMG")) {
 		*inCubeDecision = true
 		*inEvaluation = false
 		return true

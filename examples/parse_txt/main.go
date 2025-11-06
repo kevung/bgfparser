@@ -66,22 +66,23 @@ func main() {
 	}
 
 	// Display cube decision
-	if position.CubeDecision != nil {
+	if len(position.CubeDecisions) > 0 {
 		fmt.Println("\n=== Cube Decision ===")
-		cd := position.CubeDecision
-		best := ""
-		if cd.IsBest {
-			best = " *"
+		for _, cd := range position.CubeDecisions {
+			best := ""
+			if cd.IsBest {
+				best = " *"
+			}
+			fmt.Printf("%s%s\n", cd.Action, best)
+			fmt.Printf("MWC: %.3f", cd.MWC)
+			if cd.MWCDiff != 0 {
+				fmt.Printf(" (%+.3f)", cd.MWCDiff)
+			}
+			fmt.Printf("  EMG: %.3f", cd.EMG)
+			if cd.EMGDiff != 0 {
+				fmt.Printf(" (%+.3f)", cd.EMGDiff)
+			}
+			fmt.Println()
 		}
-		fmt.Printf("%s%s\n", cd.Action, best)
-		fmt.Printf("MWC: %.3f", cd.MWC)
-		if cd.MWCDiff != 0 {
-			fmt.Printf(" (%+.3f)", cd.MWCDiff)
-		}
-		fmt.Printf("  EMG: %.3f", cd.EMG)
-		if cd.EMGDiff != 0 {
-			fmt.Printf(" (%+.3f)", cd.EMGDiff)
-		}
-		fmt.Println()
 	}
 }

@@ -61,8 +61,8 @@ func TestParseTXT_WithCubeDecision(t *testing.T) {
 		t.Fatalf("ParseTXT failed: %v", err)
 	}
 
-	if pos.CubeDecision == nil {
-		t.Error("CubeDecision not parsed")
+	if len(pos.CubeDecisions) == 0 {
+		t.Error("CubeDecisions not parsed")
 	}
 }
 
