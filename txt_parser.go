@@ -190,17 +190,18 @@ func parseEvaluation(line string, rank *int) *Evaluation {
 
 	// Check for "mwp" format (new style)
 	// Format: "0.124 mwp /  -0.492            19/18, 14/12"
+	// The value before "mwp" is MWP (match winning probability)
+	// The value after "/" is EMG (equity), which we store as Equity
 	if len(parts) >= 2 && parts[1] == "mwp" {
-		// New format with mwp
-		eval.Equity, _ = strconv.ParseFloat(parts[0], 64)
+		// New format with mwp — store EMG as Equity, not MWP
 
-		// Find where the move starts (after the "/" and equity values)
+		// Find the "/" separator and extract EMG value
 		moveStartIdx := -1
 		for i := 0; i < len(parts); i++ {
 			if parts[i] == "/" && i+1 < len(parts) {
-				// The next element should be the equity value (negative)
-				// Move starts after the equity and optional diff
-				moveStartIdx = i + 2 // Skip "/" and equity
+				// parts[i+1] is the EMG equity value
+				eval.Equity, _ = strconv.ParseFloat(parts[i+1], 64)
+				moveStartIdx = i + 2 // Skip "/" and EMG value
 				// Check if there's a diff in parentheses
 				if moveStartIdx < len(parts) && strings.HasPrefix(parts[moveStartIdx], "(") {
 					// Parse diff
@@ -219,6 +220,7 @@ func parseEvaluation(line string, rank *int) *Evaluation {
 	} else {
 		// Old format without mwp
 		// Format: "13-11 24-23                0.473 / -0.289"
+		// The value before "/" is MWP, the value after "/" is EMG equity
 		// Find the "/" separator
 		slashIdx := -1
 		for i, part := range parts {
@@ -229,18 +231,12 @@ func parseEvaluation(line string, rank *int) *Evaluation {
 		}
 
 		if slashIdx > 0 {
-			// Everything before "/" is the move
+			// Everything before the MWP value is the move
 			eval.Move = strings.Join(parts[:slashIdx-1], " ")
 
-			// Parse equity (before "/")
-			if slashIdx > 0 {
-				eval.Equity, _ = strconv.ParseFloat(parts[slashIdx-1], 64)
-			}
-
-			// Parse diff (after "/")
+			// Parse EMG equity (after "/") — this is the actual equity value
 			if slashIdx+1 < len(parts) {
-				diffStr := strings.Trim(parts[slashIdx+1], "()")
-				eval.Diff, _ = strconv.ParseFloat(diffStr, 64)
+				eval.Equity, _ = strconv.ParseFloat(parts[slashIdx+1], 64)
 			}
 		}
 	}

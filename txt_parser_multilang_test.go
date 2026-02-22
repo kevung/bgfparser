@@ -185,8 +185,8 @@ func TestParseTXT_EvaluationSection(t *testing.T) {
 				t.Errorf("First move = %q, want %q", pos.Evaluations[0].Move, firstMove)
 			}
 
-			// Check equity values are parsed
-			expectedEquity := 0.124
+			// Check equity values are parsed (EMG equity, not MWP)
+			expectedEquity := -0.492
 			if pos.Evaluations[0].Equity != expectedEquity {
 				t.Errorf("First equity = %f, want %f", pos.Evaluations[0].Equity, expectedEquity)
 			}
